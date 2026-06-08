@@ -1,0 +1,23 @@
+
+{
+  "placeholderImages": [
+    {
+      "id": "modern-apartment",
+      "description": "A modern luxury apartment building",
+      "imageUrl": "https://picsum.photos/seed/apartment1/800/600",
+      "imageHint": "modern apartment"
+    },
+    {
+      "id": "office-building",
+      "description": "A professional commercial office building",
+      "imageUrl": "https://picsum.photos/seed/office1/800/600",
+      "imageHint": "office building"
+    },
+    {
+      "id": "suburban-home",
+      "description": "A cozy suburban family home",
+      "imageUrl": "https://picsum.photos/seed/home1/800/600",
+      "imageHint": "suburban home"
+    }
+  ]
+}
