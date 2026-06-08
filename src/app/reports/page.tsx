@@ -1,4 +1,3 @@
-
 "use client"
 
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
@@ -10,7 +9,7 @@ import {
   ChartConfig
 } from "@/components/ui/chart"
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Cell, Pie, PieChart, ResponsiveContainer } from "recharts"
-import { Download, Filter, TrendingUp, ArrowUpRight, ArrowDownRight, Loader2 } from "lucide-react"
+import { Download, TrendingUp, ArrowUpRight, ArrowDownRight, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase"
 import { collection, query, where } from "firebase/firestore"
@@ -92,9 +91,6 @@ export default function ReportsPage() {
             <p className="text-muted-foreground">In-depth analysis of your rental revenue stream.</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" className="gap-2">
-              <Filter className="size-4" /> Filter
-            </Button>
             <Button size="sm" className="gap-2">
               <Download className="size-4" /> Generate Report
             </Button>
@@ -102,45 +98,42 @@ export default function ReportsPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-           <Card className="flex flex-col">
+           <Card className="flex flex-col shadow-sm">
              <CardHeader className="items-center pb-0">
-               <CardTitle className="font-headline text-lg">Total Revenue</CardTitle>
-               <CardDescription>All-time collected rent</CardDescription>
+               <CardTitle className="font-headline text-lg text-muted-foreground font-medium uppercase tracking-wider">Total Revenue</CardTitle>
              </CardHeader>
-             <CardContent className="flex-1 pb-0">
-               <div className="flex flex-col items-center justify-center h-48">
+             <CardContent className="flex-1 pb-6">
+               <div className="flex flex-col items-center justify-center h-32 pt-4">
                   <span className="text-4xl font-bold">₹{totalCollected.toLocaleString()}</span>
-                  <div className="flex items-center gap-1 text-emerald-500 text-sm font-medium mt-1">
+                  <div className="flex items-center gap-1 text-emerald-500 text-sm font-medium mt-2">
                     <TrendingUp className="size-4" /> Active portfolio
                   </div>
                </div>
              </CardContent>
            </Card>
 
-           <Card className="flex flex-col">
+           <Card className="flex flex-col shadow-sm">
              <CardHeader className="items-center pb-0">
-               <CardTitle className="font-headline text-lg">Collection Efficiency</CardTitle>
-               <CardDescription>Overall recovery rate</CardDescription>
+               <CardTitle className="font-headline text-lg text-muted-foreground font-medium uppercase tracking-wider">Collection Efficiency</CardTitle>
              </CardHeader>
-             <CardContent className="flex-1 pb-0">
-               <div className="flex flex-col items-center justify-center h-48">
+             <CardContent className="flex-1 pb-6">
+               <div className="flex flex-col items-center justify-center h-32 pt-4">
                   <span className="text-4xl font-bold">{efficiency}%</span>
-                  <div className="flex items-center gap-1 text-emerald-500 text-sm font-medium mt-1">
+                  <div className="flex items-center gap-1 text-emerald-500 text-sm font-medium mt-2">
                     <ArrowUpRight className="size-4" /> Based on {invoices.length} invoices
                   </div>
                </div>
              </CardContent>
            </Card>
 
-           <Card className="flex flex-col">
+           <Card className="flex flex-col shadow-sm">
              <CardHeader className="items-center pb-0">
-               <CardTitle className="font-headline text-lg">Pending Receivables</CardTitle>
-               <CardDescription>Unpaid rent amount</CardDescription>
+               <CardTitle className="font-headline text-lg text-muted-foreground font-medium uppercase tracking-wider">Pending Receivables</CardTitle>
              </CardHeader>
-             <CardContent className="flex-1 pb-0">
-               <div className="flex flex-col items-center justify-center h-48">
+             <CardContent className="flex-1 pb-6">
+               <div className="flex flex-col items-center justify-center h-32 pt-4">
                   <span className="text-4xl font-bold text-rose-500">₹{totalPending.toLocaleString()}</span>
-                  <div className="flex items-center gap-1 text-rose-500 text-sm font-medium mt-1">
+                  <div className="flex items-center gap-1 text-rose-500 text-sm font-medium mt-2">
                     <ArrowDownRight className="size-4" /> Action required
                   </div>
                </div>
@@ -149,7 +142,7 @@ export default function ReportsPage() {
         </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
-          <Card>
+          <Card className="shadow-sm">
             <CardHeader>
               <CardTitle className="font-headline">Collection Trends</CardTitle>
               <CardDescription>Monthly breakdown of collected vs pending rent.</CardDescription>
@@ -174,7 +167,7 @@ export default function ReportsPage() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="shadow-sm">
             <CardHeader>
               <CardTitle className="font-headline">Revenue by Property</CardTitle>
               <CardDescription>Distribution of income across your assets.</CardDescription>

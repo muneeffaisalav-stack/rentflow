@@ -17,10 +17,10 @@ import {
   Search, 
   Filter, 
   MoreHorizontal, 
-  MessageSquare, 
   Phone,
   Building,
-  Loader2
+  Loader2,
+  Mail
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -46,7 +46,7 @@ export default function TenantsPage() {
   const db = useFirestore()
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
-
+  
   const propertiesQuery = useMemoFirebase(() => {
     if (!db || !user) return null
     return query(collection(db, "properties"), where("landlordId", "==", user.uid))
@@ -91,15 +91,6 @@ export default function TenantsPage() {
         errorEmitter.emit("permission-error", permissionError)
         setIsSubmitting(false)
       })
-  }
-
-  const handleSendReminder = (tenantId: string) => {
-    const tenant = tenants.find(t => t.id === tenantId)
-    if (!tenant) return
-    toast({
-      title: "Reminder Sent",
-      description: `A rent reminder has been drafted for ${tenant.name}.`,
-    })
   }
 
   return (
@@ -176,7 +167,7 @@ export default function TenantsPage() {
           </Dialog>
         </div>
 
-        <Card>
+        <Card className="shadow-sm">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg font-headline">Tenant Directory</CardTitle>
@@ -251,13 +242,8 @@ export default function TenantsPage() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-2">
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="text-primary hover:text-primary hover:bg-primary/10"
-                              onClick={() => handleSendReminder(tenant.id!)}
-                            >
-                              <MessageSquare className="size-4" />
+                            <Button variant="ghost" size="icon" title="Send reminder">
+                              <Mail className="size-4" />
                             </Button>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
