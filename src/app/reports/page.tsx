@@ -1,4 +1,3 @@
-
 "use client"
 
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
@@ -15,6 +14,7 @@ import { Button } from "@/components/ui/button"
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase"
 import { collection, query, where } from "firebase/firestore"
 import { Property, Invoice } from "@/lib/types"
+import { useToast } from "@/hooks/use-toast"
 
 const chartConfig: ChartConfig = {
   collected: {
@@ -32,6 +32,7 @@ const COLORS = ['hsl(var(--primary))', 'hsl(var(--accent))', 'hsl(var(--chart-3)
 export default function ReportsPage() {
   const { user } = useUser()
   const db = useFirestore()
+  const { toast } = useToast()
 
   const propertiesQuery = useMemoFirebase(() => {
     if (!db || !user) return null
@@ -76,6 +77,46 @@ export default function ReportsPage() {
   const totalPending = invoices.filter(i => i.status !== 'paid').reduce((sum, i) => sum + i.amount, 0)
   const efficiency = totalCollected + totalPending > 0 ? Math.round((totalCollected / (totalCollected + totalPending)) * 100) : 0
 
+  const handleGenerateReport = () => {
+    toast({
+      title: "Generating Report",
+      description: "Compiling your portfolio performance data...",
+    })
+    
+    // Simulate report generation and download
+    setTimeout(() => {
+      const reportTitle = "RentFlow Portfolio Performance Report";
+      const timestamp = new Date().toLocaleString();
+      const content = `
+${reportTitle}
+Generated: ${timestamp}
+
+OVERVIEW
+Total Revenue: INR ${totalCollected.toLocaleString()}
+Pending Receivables: INR ${totalPending.toLocaleString()}
+Collection Efficiency: ${efficiency}%
+
+MONTHLY BREAKDOWN
+${sortedMonthData.map((d: any) => `${d.month}: Collected INR ${d.collected.toLocaleString()}, Pending INR ${d.pending.toLocaleString()}`).join('\n')}
+
+PROPERTY DISTRIBUTION
+${propertyPieData.map(p => `${p.name}: INR ${p.value.toLocaleString()}`).join('\n')}
+      `;
+
+      const blob = new Blob([content], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `portfolio_report_${new Date().toISOString().slice(0, 10)}.txt`);
+      link.click();
+      
+      toast({
+        title: "Report Downloaded",
+        description: "Your executive summary is ready."
+      })
+    }, 1500);
+  };
+
   if (pLoading || iLoading) {
     return (
       <DashboardLayout>
@@ -95,7 +136,7 @@ export default function ReportsPage() {
             <p className="text-muted-foreground">In-depth analysis of your rental revenue stream.</p>
           </div>
           <div className="flex gap-2">
-            <Button size="sm" className="gap-2">
+            <Button size="sm" className="gap-2" onClick={handleGenerateReport}>
               <Download className="size-4" /> Generate Report
             </Button>
           </div>

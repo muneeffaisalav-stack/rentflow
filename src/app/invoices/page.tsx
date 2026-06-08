@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect } from "react"
@@ -50,8 +49,6 @@ export default function InvoicesPage() {
 
   const invoicesQuery = useMemoFirebase(() => {
     if (!db || !user) return null
-    // Mandatory landlordId filter required by Security Rules.
-    // Temporarily removing orderBy to avoid index requirement overhead during debugging.
     return query(
       collection(db, "invoices"), 
       where("landlordId", "==", user.uid)
@@ -124,7 +121,52 @@ export default function InvoicesPage() {
       })
   }
 
-  // Client-side sort to avoid index requirement for now
+  const handleExportCSV = () => {
+    if (filteredInvoices.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "Export Failed",
+        description: "There are no invoices to export."
+      })
+      return
+    }
+
+    const headers = ["Tenant", "Property", "Month", "Amount (INR)", "Status", "Payment Date", "Created At"];
+    const rows = filteredInvoices.map(invoice => {
+      const tenant = tenants.find(t => t.id === invoice.tenantId);
+      const property = properties.find(p => p.id === invoice.propertyId);
+      return [
+        `"${tenant?.name || 'Unknown'}"`,
+        `"${property?.propertyName || 'Unknown'}"`,
+        `"${invoice.month}"`,
+        invoice.amount,
+        `"${invoice.status}"`,
+        `"${invoice.paymentDate ? new Date(invoice.paymentDate).toLocaleDateString() : '-'}"`,
+        `"${new Date(invoice.createdAt).toLocaleDateString()}"`
+      ];
+    });
+
+    const csvContent = [
+      headers.join(","),
+      ...rows.map(r => r.join(","))
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `rentflow_invoices_${new Date().toISOString().slice(0, 10)}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    toast({
+      title: "Export Complete",
+      description: "Your billing data has been downloaded as CSV."
+    })
+  };
+
   const filteredInvoices = invoices
     .filter(invoice => {
       const tenant = tenants.find(t => t.id === invoice.tenantId)
@@ -201,7 +243,7 @@ export default function InvoicesPage() {
                 </form>
               </DialogContent>
             </Dialog>
-            <Button variant="outline" className="gap-2 hidden md:flex">
+            <Button variant="outline" className="gap-2 hidden md:flex" onClick={handleExportCSV}>
               <Download className="size-4" />
               Export
             </Button>
