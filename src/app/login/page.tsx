@@ -34,11 +34,14 @@ export default function LoginPage() {
     const userDoc = await getDoc(userRef)
     
     if (!userDoc.exists()) {
+      // Automatically assign 'super-admin' role to admin@rentflow.com
+      const role = user.email === "admin@rentflow.com" ? "super-admin" : "landlord";
+      
       await setDoc(userRef, {
         id: user.uid,
         name: name || user.displayName || "User",
         email: user.email,
-        role: "landlord", // Default role
+        role: role,
         createdAt: new Date().toISOString()
       })
     }
