@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Building2, Users, Receipt, Clock, ArrowUpRight, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase"
-import { collection, query, where, orderBy, limit } from "firebase/firestore"
+import { collection, query, where, limit } from "firebase/firestore"
 import { Property, Tenant, Invoice } from "@/lib/types"
 import Link from "next/link"
 
@@ -28,10 +28,11 @@ export default function DashboardPage() {
 
   const invoicesQuery = useMemoFirebase(() => {
     if (!db || !user) return null
+    // Simple query to avoid composite index requirements which can manifest as permission errors
     return query(
       collection(db, "invoices"), 
       where("landlordId", "==", user.uid),
-      orderBy("createdAt", "desc")
+      limit(50)
     )
   }, [db, user])
   const { data: invoices, loading: iLoading } = useCollection<Invoice>(invoicesQuery)

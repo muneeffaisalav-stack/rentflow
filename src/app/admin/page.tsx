@@ -14,9 +14,9 @@ export default function AdminPage() {
   const { isAdmin, profile, loading: authLoading } = useProfile()
   const db = useFirestore()
 
-  // Only attempt to create collection references if we are confirmed as an admin in the database
-  // and the profile has been fully loaded and verified.
-  const canFetchAdminData = !authLoading && isAdmin && profile?.role === 'super-admin'
+  // STRICT GUARD: Only fetch data if the user is verified as super-admin in Firestore.
+  // This prevents Permission Denied errors during the brief moment before profile sync.
+  const canFetchAdminData = !authLoading && profile?.role === 'super-admin'
 
   const usersColl = useMemoFirebase(() => {
     if (!db || !canFetchAdminData) return null
@@ -56,6 +56,7 @@ export default function AdminPage() {
     )
   }
 
+  // Final redirect guard
   if (!isAdmin) redirect("/dashboard")
 
   const totalRevenue = invoices

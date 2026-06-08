@@ -68,19 +68,19 @@
   "firestore": {
     "/users/{userId}": {
       "schema": "User",
-      "description": "Collection of platform user profiles and roles."
+      "description": "Collection of platform user profiles. Role 'super-admin' grants system-wide read/write access."
     },
     "/properties/{propertyId}": {
       "schema": "Property",
-      "description": "Global properties collection."
+      "description": "Global properties collection. Landlords can only access their own properties via landlordId. Super-admins have full access."
     },
     "/tenants/{tenantId}": {
       "schema": "Tenant",
-      "description": "Global tenants collection."
+      "description": "Global tenants collection. Landlords can only access their own tenants via landlordId. Super-admins have full access."
     },
     "/invoices/{invoiceId}": {
       "schema": "Invoice",
-      "description": "Global invoices collection."
+      "description": "Global invoices collection. Landlords can only access their own invoices via landlordId. Super-admins have full access to all invoices."
     }
   }
 }
