@@ -1,6 +1,19 @@
 
 {
   "entities": {
+    "User": {
+      "title": "User",
+      "description": "Represents a user of the system (Landlord or Admin).",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["landlord", "super-admin"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "email", "role"]
+    },
     "Property": {
       "title": "Property",
       "description": "Represents a physical real estate asset.",
@@ -25,7 +38,7 @@
         "name": { "type": "string" },
         "phone": { "type": "string" },
         "rentAmount": { "type": "number" },
-        "dueDate": { "type": "number", "description": "Day of the month rent is due" },
+        "dueDate": { "type": "number" },
         "upiId": { "type": "string" },
         "status": { "type": "string", "enum": ["active", "inactive"] }
       },
@@ -39,12 +52,11 @@
         "id": { "type": "string" },
         "tenantId": { "type": "string" },
         "propertyId": { "type": "string" },
-        "month": { "type": "string", "description": "YYYY-MM format" },
+        "month": { "type": "string" },
         "amount": { "type": "number" },
         "status": { "type": "string", "enum": ["pending", "paid", "overdue"] },
         "paymentDate": { "type": "string", "format": "date-time" },
-        "createdAt": { "type": "string", "format": "date-time" },
-        "paymentLink": { "type": "string" }
+        "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["tenantId", "propertyId", "month", "amount", "status"]
     }
@@ -53,6 +65,10 @@
     "providers": ["google", "password"]
   },
   "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Collection of platform user profiles and roles."
+    },
     "/properties/{propertyId}": {
       "schema": "Property",
       "description": "Global properties collection."

@@ -11,7 +11,9 @@ import {
   BarChart3, 
   Settings,
   LogOut,
-  Plus
+  Plus,
+  ShieldCheck,
+  UserCog
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -28,6 +30,7 @@ import {
 import { useAuth } from "@/firebase"
 import { signOut } from "firebase/auth"
 import { useToast } from "@/hooks/use-toast"
+import { useProfile } from "@/hooks/use-profile"
 
 const menuItems = [
   { title: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
@@ -37,11 +40,17 @@ const menuItems = [
   { title: "Reports", icon: BarChart3, href: "/reports" },
 ]
 
+const adminItems = [
+  { title: "Admin Overview", icon: ShieldCheck, href: "/admin" },
+  { title: "User Management", icon: UserCog, href: "/admin/users" },
+]
+
 export function SidebarNav() {
   const pathname = usePathname()
   const auth = useAuth()
   const router = useRouter()
   const { toast } = useToast()
+  const { isAdmin } = useProfile()
 
   const handleLogout = async () => {
     try {
@@ -103,6 +112,35 @@ export function SidebarNav() {
             )
           })}
         </SidebarMenu>
+
+        {isAdmin && (
+          <>
+            <div className="px-6 mt-8 mb-2">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Admin Controls</p>
+            </div>
+            <SidebarMenu>
+              {adminItems.map((item) => {
+                const isActive = pathname === item.href
+                return (
+                  <SidebarMenuItem key={item.href}>
+                    <SidebarMenuButton asChild isActive={isActive} tooltip={item.title}>
+                      <Link 
+                        href={item.href}
+                        className={cn(
+                          "flex items-center gap-3 px-3 py-2 transition-colors",
+                          isActive ? "text-primary font-medium" : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        <item.icon className={cn("size-5", isActive ? "text-primary" : "text-muted-foreground")} />
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )
+              })}
+            </SidebarMenu>
+          </>
+        )}
       </SidebarContent>
       <SidebarFooter className="p-4">
         <SidebarSeparator className="mb-4" />

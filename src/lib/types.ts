@@ -5,9 +5,9 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  phone: string;
   role: Role;
   createdAt: string;
+  phone?: string;
 }
 
 export interface Property {
@@ -39,5 +39,4 @@ export interface Invoice {
   status: 'pending' | 'paid' | 'overdue';
   paymentDate?: string;
   createdAt: string;
-  paymentLink?: string;
 }

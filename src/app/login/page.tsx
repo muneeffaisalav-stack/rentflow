@@ -3,7 +3,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { useAuth } from "@/firebase"
+import { useAuth, useFirestore } from "@/firebase"
 import { 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
@@ -11,6 +11,7 @@ import {
   GoogleAuthProvider,
   signInWithPopup
 } from "firebase/auth"
+import { doc, setDoc, getDoc } from "firebase/firestore"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -24,8 +25,24 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const auth = useAuth()
+  const db = useFirestore()
   const router = useRouter()
   const { toast } = useToast()
+
+  const syncUserProfile = async (user: any, name: string) => {
+    const userRef = doc(db, "users", user.uid)
+    const userDoc = await getDoc(userRef)
+    
+    if (!userDoc.exists()) {
+      await setDoc(userRef, {
+        id: user.uid,
+        name: name || user.displayName || "User",
+        email: user.email,
+        role: "landlord", // Default role
+        createdAt: new Date().toISOString()
+      })
+    }
+  }
 
   const handleEmailAuth = async (e: React.FormEvent<HTMLFormElement>, type: 'login' | 'signup') => {
     e.preventDefault()
@@ -41,9 +58,11 @@ export default function LoginPage() {
       if (type === 'signup') {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password)
         await updateProfile(userCredential.user, { displayName: name })
+        await syncUserProfile(userCredential.user, name)
         toast({ title: "Account Created", description: "Welcome to RentFlow!" })
       } else {
-        await signInWithEmailAndPassword(auth, email, password)
+        const userCredential = await signInWithEmailAndPassword(auth, email, password)
+        await syncUserProfile(userCredential.user, userCredential.user.displayName || "")
         toast({ title: "Signed In", description: "Welcome back!" })
       }
       router.push("/dashboard")
@@ -59,7 +78,8 @@ export default function LoginPage() {
     setError(null)
     const provider = new GoogleAuthProvider()
     try {
-      await signInWithPopup(auth, provider)
+      const result = await signInWithPopup(auth, provider)
+      await syncUserProfile(result.user, result.user.displayName || "")
       toast({ title: "Signed In", description: "Welcome to RentFlow!" })
       router.push("/dashboard")
     } catch (err: any) {
