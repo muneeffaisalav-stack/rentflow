@@ -11,14 +11,32 @@ import { useProfile } from "@/hooks/use-profile"
 import { redirect } from "next/navigation"
 
 export default function AdminPage() {
-  const { isAdmin, loading: authLoading } = useProfile()
+  const { isAdmin, profile, loading: authLoading } = useProfile()
   const db = useFirestore()
 
-  // Memoize all collection references to prevent infinite re-renders
-  const usersColl = useMemoFirebase(() => collection(db, "users"), [db])
-  const propsColl = useMemoFirebase(() => collection(db, "properties"), [db])
-  const tenantsColl = useMemoFirebase(() => collection(db, "tenants"), [db])
-  const invoicesColl = useMemoFirebase(() => collection(db, "invoices"), [db])
+  // Only attempt to create collection references if we are confirmed as an admin in the database
+  // this avoids triggering permission errors before the role sync completes
+  const canFetchAdminData = isAdmin && profile?.role === 'super-admin'
+
+  const usersColl = useMemoFirebase(() => {
+    if (!db || !canFetchAdminData) return null
+    return collection(db, "users")
+  }, [db, canFetchAdminData])
+
+  const propsColl = useMemoFirebase(() => {
+    if (!db || !canFetchAdminData) return null
+    return collection(db, "properties")
+  }, [db, canFetchAdminData])
+
+  const tenantsColl = useMemoFirebase(() => {
+    if (!db || !canFetchAdminData) return null
+    return collection(db, "tenants")
+  }, [db, canFetchAdminData])
+
+  const invoicesColl = useMemoFirebase(() => {
+    if (!db || !canFetchAdminData) return null
+    return collection(db, "invoices")
+  }, [db, canFetchAdminData])
 
   const { data: users, loading: uLoading } = useCollection<User>(usersColl)
   const { data: properties, loading: pLoading } = useCollection<Property>(propsColl)
@@ -41,7 +59,7 @@ export default function AdminPage() {
     { title: "Global Revenue", value: `₹${totalRevenue.toLocaleString()}`, icon: CreditCard, color: "text-amber-500", bg: "bg-amber-50" },
   ]
 
-  const isLoadingData = uLoading || pLoading || tLoading || iLoading
+  const isLoadingData = uLoading || pLoading || tLoading || iLoading || !canFetchAdminData
 
   return (
     <DashboardLayout>

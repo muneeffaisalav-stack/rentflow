@@ -18,14 +18,14 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
-import { initializeApp, deleteApp, getApps } from "firebase/app"
+import { initializeApp, deleteApp } from "firebase/app"
 import { getAuth, createUserWithEmailAndPassword, signOut as authSignOut } from "firebase/auth"
 import { firebaseConfig } from "@/firebase/config"
 import { errorEmitter } from "@/firebase/error-emitter"
 import { FirestorePermissionError } from "@/firebase/errors"
 
 export default function UserManagementPage() {
-  const { isAdmin, loading: authLoading } = useProfile()
+  const { isAdmin, profile, loading: authLoading } = useProfile()
   const db = useFirestore()
   const { toast } = useToast()
   
@@ -33,7 +33,14 @@ export default function UserManagementPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const usersQuery = useMemoFirebase(() => query(collection(db, "users"), orderBy("createdAt", "desc")), [db])
+  // Ensure we only query the users collection if the profile confirms admin role
+  const canFetchUsers = isAdmin && profile?.role === 'super-admin'
+
+  const usersQuery = useMemoFirebase(() => {
+    if (!db || !canFetchUsers) return null
+    return query(collection(db, "users"), orderBy("createdAt", "desc"))
+  }, [db, canFetchUsers])
+
   const { data: users, loading: uLoading } = useCollection<User>(usersQuery)
 
   if (authLoading) return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin" /></div>
@@ -51,16 +58,13 @@ export default function UserManagementPage() {
 
     let secondaryApp;
     try {
-      // Use a secondary app instance to create the user without signing out the admin
       const appName = `temp-user-${Date.now()}`
       secondaryApp = initializeApp(firebaseConfig, appName)
       const secondaryAuth = getAuth(secondaryApp)
 
-      // 1. Create the Auth account
       const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, password)
       const newUid = userCredential.user.uid
 
-      // 2. Create the Firestore profile using the primary Firestore instance
       const userData = {
         id: newUid,
         name,
@@ -71,7 +75,6 @@ export default function UserManagementPage() {
 
       await setDoc(doc(db, "users", newUid), userData)
 
-      // 3. Clean up the secondary app session
       await authSignOut(secondaryAuth)
       await deleteApp(secondaryApp)
 
@@ -83,7 +86,6 @@ export default function UserManagementPage() {
     } catch (error: any) {
       console.error("Error adding user:", error)
       
-      // Handle Firebase specific errors
       let errorMessage = error.message || "Failed to create user account."
       if (error.code === 'auth/email-already-in-use') {
         errorMessage = "This email is already registered."
@@ -97,7 +99,6 @@ export default function UserManagementPage() {
         description: errorMessage,
       })
 
-      // If it's a permission error, emit it for the global listener
       if (error.code === 'permission-denied') {
         const permissionError = new FirestorePermissionError({
           path: "users",
@@ -106,7 +107,6 @@ export default function UserManagementPage() {
         errorEmitter.emit('permission-error', permissionError)
       }
 
-      // Cleanup on failure
       if (secondaryApp) {
         try {
           await deleteApp(secondaryApp)
@@ -202,7 +202,7 @@ export default function UserManagementPage() {
             <CardTitle className="font-headline">All Users</CardTitle>
           </CardHeader>
           <CardContent>
-            {uLoading ? (
+            {uLoading || !canFetchUsers ? (
               <div className="flex justify-center p-12"><Loader2 className="animate-spin" /></div>
             ) : filteredUsers.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-lg">
