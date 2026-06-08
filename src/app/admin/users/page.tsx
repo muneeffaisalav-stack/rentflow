@@ -1,11 +1,10 @@
-
 "use client"
 
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Loader2, Search, Mail, ShieldCheck, UserCheck, Plus, AlertCircle, MoreVertical, Edit, Trash2, Key } from "lucide-react"
+import { Loader2, Search, Mail, ShieldCheck, UserCheck, Plus, AlertCircle, MoreVertical, Edit, Trash2, Key, Eye, EyeOff } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { useFirestore, useCollection, useMemoFirebase, useAuth } from "@/firebase"
@@ -37,6 +36,7 @@ export default function UserManagementPage() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
+  const [showTempPassword, setShowTempPassword] = useState(false)
 
   // Ensure we only query the users collection if the profile confirms admin role
   const canFetchUsers = isAdmin && profile?.role === 'super-admin'
@@ -100,6 +100,7 @@ export default function UserManagementPage() {
         description: `${name} has been added as a ${role}.`,
       })
       setIsAddDialogOpen(false)
+      setShowTempPassword(false)
     } catch (error: any) {
       console.error("Error adding user:", error)
       
@@ -251,7 +252,28 @@ export default function UserManagementPage() {
                     </div>
                     <div className="grid gap-2">
                       <Label htmlFor="password">Temporary Password</Label>
-                      <Input id="password" name="password" type="password" required />
+                      <div className="relative">
+                        <Input 
+                          id="password" 
+                          name="password" 
+                          type={showTempPassword ? "text" : "password"} 
+                          required 
+                          className="pr-10"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                          onClick={() => setShowTempPassword(!showTempPassword)}
+                        >
+                          {showTempPassword ? (
+                            <EyeOff className="h-4 w-4 text-muted-foreground" />
+                          ) : (
+                            <Eye className="h-4 w-4 text-muted-foreground" />
+                          )}
+                        </Button>
+                      </div>
                       <p className="text-[10px] text-muted-foreground">Minimum 6 characters. Provide this to the user for their first login.</p>
                     </div>
                     <div className="grid gap-2">

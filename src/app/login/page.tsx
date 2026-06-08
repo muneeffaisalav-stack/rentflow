@@ -18,7 +18,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Building2, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Building2, Loader2, AlertCircle, CheckCircle2, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { initializeApp, deleteApp } from 'firebase/app';
@@ -29,6 +29,8 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [signupSuccess, setSignupSuccess] = useState(false);
   const [activeTab, setActiveTab] = useState('login');
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [showSignupPassword, setShowSignupPassword] = useState(false);
   
   const auth = useAuth();
   const db = useFirestore();
@@ -78,7 +80,6 @@ export default function LoginPage() {
     if (type === 'signup') {
       let secondaryApp;
       try {
-        // Use a secondary app to create the user without signing them in on the main app
         const appName = `signup-temp-${Date.now()}`;
         secondaryApp = initializeApp(firebaseConfig, appName);
         const secondaryAuth = getAuth(secondaryApp);
@@ -89,7 +90,6 @@ export default function LoginPage() {
         await updateProfile(user, { displayName: name });
         await syncUserProfile(user.uid, email, name);
         
-        // Clean up the temporary session
         await authSignOut(secondaryAuth);
         await deleteApp(secondaryApp);
 
@@ -183,7 +183,28 @@ export default function LoginPage() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="password">Password</Label>
-                    <Input id="password" name="password" type="password" required className="bg-slate-50/50" />
+                    <div className="relative">
+                      <Input 
+                        id="password" 
+                        name="password" 
+                        type={showLoginPassword ? "text" : "password"} 
+                        required 
+                        className="bg-slate-50/50 pr-10" 
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                        onClick={() => setShowLoginPassword(!showLoginPassword)}
+                      >
+                        {showLoginPassword ? (
+                          <EyeOff className="h-4 w-4 text-muted-foreground" />
+                        ) : (
+                          <Eye className="h-4 w-4 text-muted-foreground" />
+                        )}
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
                 <CardFooter className="flex flex-col gap-4">
@@ -212,7 +233,28 @@ export default function LoginPage() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="signup-password">Password</Label>
-                    <Input id="signup-password" name="password" type="password" required className="bg-slate-50/50" />
+                    <div className="relative">
+                      <Input 
+                        id="signup-password" 
+                        name="password" 
+                        type={showSignupPassword ? "text" : "password"} 
+                        required 
+                        className="bg-slate-50/50 pr-10" 
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                        onClick={() => setShowSignupPassword(!showSignupPassword)}
+                      >
+                        {showSignupPassword ? (
+                          <EyeOff className="h-4 w-4 text-muted-foreground" />
+                        ) : (
+                          <Eye className="h-4 w-4 text-muted-foreground" />
+                        )}
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
                 <CardFooter className="flex flex-col gap-4">
