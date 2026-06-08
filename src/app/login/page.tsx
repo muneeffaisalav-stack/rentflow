@@ -8,7 +8,9 @@ import {
   createUserWithEmailAndPassword, 
   updateProfile,
   GoogleAuthProvider,
-  signInWithPopup
+  signInWithPopup,
+  signOut as authSignOut,
+  getAuth
 } from 'firebase/auth';
 import { doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
@@ -16,33 +18,38 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Building2, Loader2, AlertCircle } from 'lucide-react';
+import { Building2, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { initializeApp, deleteApp } from 'firebase/app';
+import { firebaseConfig } from '@/firebase/config';
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [signupSuccess, setSignupSuccess] = useState(false);
+  const [activeTab, setActiveTab] = useState('login');
+  
   const auth = useAuth();
   const db = useFirestore();
   const router = useRouter();
   const { toast } = useToast();
 
-  const syncUserProfile = async (user: any, name: string) => {
-    if (!db || !user) return;
+  const syncUserProfile = async (uid: string, email: string, name: string) => {
+    if (!db) return;
 
     try {
-      const userRef = doc(db, 'users', user.uid);
+      const userRef = doc(db, 'users', uid);
       const userDoc = await getDoc(userRef);
       
-      const isAdminEmail = user.email?.toLowerCase() === 'admin@rentflow.com';
+      const isAdminEmail = email?.toLowerCase() === 'admin@rentflow.com';
       const targetRole = isAdminEmail ? 'super-admin' : 'landlord';
 
       if (!userDoc.exists()) {
         await setDoc(userRef, {
-          id: user.uid,
-          name: name || user.displayName || 'User',
-          email: user.email,
+          id: uid,
+          name: name || 'User',
+          email: email,
           role: targetRole,
           createdAt: new Date().toISOString()
         });
@@ -53,7 +60,7 @@ export default function LoginPage() {
         }
       }
     } catch (err) {
-      console.error('Initial profile sync failed:', err);
+      console.error('Profile sync failed:', err);
     }
   };
 
@@ -61,28 +68,53 @@ export default function LoginPage() {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
+    setSignupSuccess(false);
 
     const formData = new FormData(e.currentTarget);
     const email = (formData.get('email') as string).trim();
     const password = formData.get('password') as string;
     const name = formData.get('name') as string;
 
-    try {
-      if (type === 'signup') {
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        await updateProfile(userCredential.user, { displayName: name });
-        await syncUserProfile(userCredential.user, name);
-        toast({ title: 'Account Created', description: 'Welcome to RentFlow!' });
-      } else {
-        const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        await syncUserProfile(userCredential.user, userCredential.user.displayName || '');
-        toast({ title: 'Signed In', description: 'Welcome back!' });
+    if (type === 'signup') {
+      let secondaryApp;
+      try {
+        // Use a secondary app to create the user without signing them in on the main app
+        const appName = `signup-temp-${Date.now()}`;
+        secondaryApp = initializeApp(firebaseConfig, appName);
+        const secondaryAuth = getAuth(secondaryApp);
+
+        const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, password);
+        const user = userCredential.user;
+        
+        await updateProfile(user, { displayName: name });
+        await syncUserProfile(user.uid, email, name);
+        
+        // Clean up the temporary session
+        await authSignOut(secondaryAuth);
+        await deleteApp(secondaryApp);
+
+        setSignupSuccess(true);
+        setActiveTab('login');
+        toast({ 
+          title: 'Account Created', 
+          description: 'Your account is ready. Please log in to continue.' 
+        });
+      } catch (err: any) {
+        setError(err.message || 'Signup failed. Please try again.');
+        if (secondaryApp) await deleteApp(secondaryApp);
+      } finally {
+        setIsLoading(false);
       }
-      router.push('/dashboard');
-    } catch (err: any) {
-      setError(err.message || 'Authentication failed. Please try again.');
-    } finally {
-      setIsLoading(false);
+    } else {
+      try {
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        await syncUserProfile(userCredential.user.uid, userCredential.user.email || '', userCredential.user.displayName || '');
+        toast({ title: 'Signed In', description: 'Welcome back!' });
+        router.push('/dashboard');
+      } catch (err: any) {
+        setError(err.message || 'Authentication failed. Please try again.');
+        setIsLoading(false);
+      }
     }
   };
 
@@ -92,7 +124,7 @@ export default function LoginPage() {
     const provider = new GoogleAuthProvider();
     try {
       const result = await signInWithPopup(auth, provider);
-      await syncUserProfile(result.user, result.user.displayName || '');
+      await syncUserProfile(result.user.uid, result.user.email || '', result.user.displayName || '');
       toast({ title: 'Signed In', description: 'Welcome to RentFlow!' });
       router.push('/dashboard');
     } catch (err: any) {
@@ -121,8 +153,16 @@ export default function LoginPage() {
           </Alert>
         )}
 
+        {signupSuccess && (
+          <Alert className="bg-emerald-50 border-emerald-200 text-emerald-800">
+            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+            <AlertTitle className="font-bold">Account Created Successfully!</AlertTitle>
+            <AlertDescription>Your profile is ready. You can now log in with your credentials.</AlertDescription>
+          </Alert>
+        )}
+
         <Card className="border-border/60 shadow-xl overflow-hidden">
-          <Tabs defaultValue="login" className="w-full">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <CardHeader className="pb-0 bg-slate-50/50 border-b">
               <TabsList className="grid w-full grid-cols-2 mb-4">
                 <TabsTrigger value="login">Login</TabsTrigger>
