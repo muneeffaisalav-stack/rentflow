@@ -24,7 +24,7 @@ import { getAuth, createUserWithEmailAndPassword, sendPasswordResetEmail, signOu
 import { firebaseConfig } from "@/firebase/config"
 import { errorEmitter } from "@/firebase/error-emitter"
 import { FirestorePermissionError } from "@/firebase/errors"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
 
 export default function UserManagementPage() {
   const { isAdmin, profile, loading: authLoading } = useProfile()
