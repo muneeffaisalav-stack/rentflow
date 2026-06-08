@@ -5,7 +5,7 @@ import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Building2, Users, CreditCard, ShieldCheck, Loader2, AlertCircle } from "lucide-react"
 import { useFirestore, useCollection, useMemoFirebase } from "@/firebase"
-import { collection } from "firebase/firestore"
+import { collection, query, limit } from "firebase/firestore"
 import { Property, Tenant, Invoice, User } from "@/lib/types"
 import { useProfile } from "@/hooks/use-profile"
 import { redirect } from "next/navigation"
@@ -20,22 +20,22 @@ export default function AdminPage() {
 
   const usersColl = useMemoFirebase(() => {
     if (!db || !canFetchAdminData) return null
-    return collection(db, "users")
+    return query(collection(db, "users"), limit(500))
   }, [db, canFetchAdminData])
 
   const propsColl = useMemoFirebase(() => {
     if (!db || !canFetchAdminData) return null
-    return collection(db, "properties")
+    return query(collection(db, "properties"), limit(500))
   }, [db, canFetchAdminData])
 
   const tenantsColl = useMemoFirebase(() => {
     if (!db || !canFetchAdminData) return null
-    return collection(db, "tenants")
+    return query(collection(db, "tenants"), limit(500))
   }, [db, canFetchAdminData])
 
   const invoicesColl = useMemoFirebase(() => {
     if (!db || !canFetchAdminData) return null
-    return collection(db, "invoices")
+    return query(collection(db, "invoices"), limit(500))
   }, [db, canFetchAdminData])
 
   const { data: users, loading: uLoading } = useCollection<User>(usersColl)

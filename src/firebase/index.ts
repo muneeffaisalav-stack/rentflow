@@ -6,10 +6,11 @@ import { firebaseConfig } from './config';
 
 /**
  * Initializes the Firebase app and core services.
- * Note: A change to this file triggers a deployment of Security Rules to 
- * ensure roles like 'super-admin' are correctly recognized for system-wide access.
- * Triggering redeployment to fix permission errors on root-level collection listing.
- * Latest trigger: Ensuring Invoice security rules account for landlordId and super-admin global list.
+ * Note: A change to this file triggers a deployment of Security Rules.
+ * Explicitly triggering redeployment to ensure the 'super-admin' role defined 
+ * in backend.json for /users, /properties, /tenants, and /invoices is correctly 
+ * processed by the rule generator to allow global listing.
+ * Latest trigger: Correcting Invoice permission errors for administrative users.
  */
 export function initializeFirebase() {
   const firebaseApp = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);

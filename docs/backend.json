@@ -68,19 +68,19 @@
   "firestore": {
     "/users/{userId}": {
       "schema": "User",
-      "description": "Collection of platform user profiles. Role 'super-admin' grants system-wide read/write access."
+      "description": "Collection of platform user profiles. Access control: Users can read/write their own profile. Users with role 'super-admin' in their own document at /users/{request.auth.uid} have full global access to all user documents."
     },
     "/properties/{propertyId}": {
       "schema": "Property",
-      "description": "Global properties collection. Landlords can only access their own properties via landlordId. Super-admins have full access."
+      "description": "Global properties collection. Access control: Landlords can read/write properties where landlordId matches their UID. Users with role 'super-admin' in their own profile document at /users/{request.auth.uid} have full global access to list and manage all properties."
     },
     "/tenants/{tenantId}": {
       "schema": "Tenant",
-      "description": "Global tenants collection. Landlords can only access their own tenants via landlordId. Super-admins have full access."
+      "description": "Global tenants collection. Access control: Landlords can read/write tenants where landlordId matches their UID. Users with role 'super-admin' in their own profile document at /users/{request.auth.uid} have full global access to list and manage all tenants."
     },
     "/invoices/{invoiceId}": {
       "schema": "Invoice",
-      "description": "Global invoices collection. Landlords can only access their own invoices via landlordId. Super-admins have full access to all invoices."
+      "description": "Global invoices collection. Access control: Landlords can read/write invoices where landlordId matches their UID. Users with role 'super-admin' in their own profile document at /users/{request.auth.uid} have full global access to list and manage all invoices."
     }
   }
 }
