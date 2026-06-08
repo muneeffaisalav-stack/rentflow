@@ -3,8 +3,8 @@
 
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Building2, Users, CreditCard, ShieldCheck, Loader2 } from "lucide-react"
-import { useFirestore, useCollection } from "@/firebase"
+import { Building2, Users, CreditCard, ShieldCheck, Loader2, AlertCircle } from "lucide-react"
+import { useFirestore, useCollection, useMemoFirebase } from "@/firebase"
 import { collection } from "firebase/firestore"
 import { Property, Tenant, Invoice, User } from "@/lib/types"
 import { useProfile } from "@/hooks/use-profile"
@@ -14,10 +14,16 @@ export default function AdminPage() {
   const { isAdmin, loading: authLoading } = useProfile()
   const db = useFirestore()
 
-  const { data: users, loading: uLoading } = useCollection<User>(collection(db, "users"))
-  const { data: properties, loading: pLoading } = useCollection<Property>(collection(db, "properties"))
-  const { data: tenants, loading: tLoading } = useCollection<Tenant>(collection(db, "tenants"))
-  const { data: invoices, loading: iLoading } = useCollection<Invoice>(collection(db, "invoices"))
+  // Memoize all collection references to prevent infinite re-renders
+  const usersColl = useMemoFirebase(() => collection(db, "users"), [db])
+  const propsColl = useMemoFirebase(() => collection(db, "properties"), [db])
+  const tenantsColl = useMemoFirebase(() => collection(db, "tenants"), [db])
+  const invoicesColl = useMemoFirebase(() => collection(db, "invoices"), [db])
+
+  const { data: users, loading: uLoading } = useCollection<User>(usersColl)
+  const { data: properties, loading: pLoading } = useCollection<Property>(propsColl)
+  const { data: tenants, loading: tLoading } = useCollection<Tenant>(tenantsColl)
+  const { data: invoices, loading: iLoading } = useCollection<Invoice>(invoicesColl)
 
   if (authLoading) return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin" /></div>
   if (!isAdmin) redirect("/dashboard")
@@ -26,12 +32,16 @@ export default function AdminPage() {
     .filter(i => i.status === 'paid')
     .reduce((sum, i) => sum + i.amount, 0)
 
+  const landlords = users.filter(u => u.role === 'landlord')
+
   const stats = [
-    { title: "Total Landlords", value: users.filter(u => u.role === 'landlord').length, icon: Users, color: "text-blue-500", bg: "bg-blue-50" },
+    { title: "Total Landlords", value: landlords.length, icon: Users, color: "text-blue-500", bg: "bg-blue-50" },
     { title: "Platform Assets", value: properties.length, icon: Building2, color: "text-indigo-500", bg: "bg-indigo-50" },
     { title: "Active Tenants", value: tenants.length, icon: ShieldCheck, color: "text-emerald-500", bg: "bg-emerald-50" },
     { title: "Global Revenue", value: `₹${totalRevenue.toLocaleString()}`, icon: CreditCard, color: "text-amber-500", bg: "bg-amber-50" },
   ]
+
+  const isLoadingData = uLoading || pLoading || tLoading || iLoading
 
   return (
     <DashboardLayout>
@@ -51,7 +61,11 @@ export default function AdminPage() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stat.value}</div>
+                {isLoadingData ? (
+                  <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                ) : (
+                  <div className="text-2xl font-bold">{stat.value}</div>
+                )}
               </CardContent>
             </Card>
           ))}
@@ -63,17 +77,28 @@ export default function AdminPage() {
                <CardTitle className="font-headline">Recent Landlords</CardTitle>
              </CardHeader>
              <CardContent>
-               <div className="space-y-4">
-                 {users.filter(u => u.role === 'landlord').slice(0, 5).map(user => (
-                   <div key={user.id} className="flex items-center justify-between border-b pb-2 last:border-0">
-                     <div>
-                       <p className="font-medium">{user.name}</p>
-                       <p className="text-xs text-muted-foreground">{user.email}</p>
+               {isLoadingData ? (
+                 <div className="flex justify-center py-8"><Loader2 className="animate-spin" /></div>
+               ) : landlords.length === 0 ? (
+                 <div className="text-center py-8 text-muted-foreground flex flex-col items-center gap-2">
+                   <AlertCircle className="size-8 opacity-20" />
+                   <p>No landlords registered yet.</p>
+                 </div>
+               ) : (
+                 <div className="space-y-4">
+                   {landlords.slice(0, 5).map(user => (
+                     <div key={user.id} className="flex items-center justify-between border-b pb-2 last:border-0">
+                       <div>
+                         <p className="font-medium">{user.name}</p>
+                         <p className="text-xs text-muted-foreground">{user.email}</p>
+                       </div>
+                       <span className="text-[10px] bg-slate-100 px-2 py-1 rounded">
+                         {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}
+                       </span>
                      </div>
-                     <span className="text-[10px] bg-slate-100 px-2 py-1 rounded">{new Date(user.createdAt).toLocaleDateString()}</span>
-                   </div>
-                 ))}
-               </div>
+                   ))}
+                 </div>
+               )}
              </CardContent>
            </Card>
 
@@ -82,20 +107,30 @@ export default function AdminPage() {
                <CardTitle className="font-headline">Global Collection Status</CardTitle>
              </CardHeader>
              <CardContent>
-               <div className="space-y-2">
-                 <div className="flex justify-between text-sm">
-                   <span>Paid Invoices</span>
-                   <span className="font-bold text-emerald-600">{invoices.filter(i => i.status === 'paid').length}</span>
+               {isLoadingData ? (
+                  <div className="flex justify-center py-8"><Loader2 className="animate-spin" /></div>
+               ) : (
+                 <div className="space-y-4 pt-2">
+                   <div className="flex justify-between text-sm items-center">
+                     <span className="text-muted-foreground">Paid Invoices</span>
+                     <span className="font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">
+                       {invoices.filter(i => i.status === 'paid').length}
+                     </span>
+                   </div>
+                   <div className="flex justify-between text-sm items-center">
+                     <span className="text-muted-foreground">Pending Payments</span>
+                     <span className="font-bold text-amber-600 bg-amber-50 px-3 py-1 rounded-full">
+                       {invoices.filter(i => i.status === 'pending').length}
+                     </span>
+                   </div>
+                   <div className="flex justify-between text-sm items-center">
+                     <span className="text-muted-foreground">Overdue Receivables</span>
+                     <span className="font-bold text-rose-600 bg-rose-50 px-3 py-1 rounded-full">
+                       {invoices.filter(i => i.status === 'overdue').length}
+                     </span>
+                   </div>
                  </div>
-                 <div className="flex justify-between text-sm">
-                   <span>Pending Payments</span>
-                   <span className="font-bold text-amber-600">{invoices.filter(i => i.status === 'pending').length}</span>
-                 </div>
-                 <div className="flex justify-between text-sm">
-                   <span>Overdue Receivables</span>
-                   <span className="font-bold text-rose-600">{invoices.filter(i => i.status === 'overdue').length}</span>
-                 </div>
-               </div>
+               )}
              </CardContent>
            </Card>
         </div>
