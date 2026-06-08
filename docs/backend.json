@@ -1,0 +1,68 @@
+{
+  "entities": {
+    "Property": {
+      "title": "Property",
+      "description": "Represents a physical real estate asset.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "landlordId": { "type": "string" },
+        "propertyName": { "type": "string" },
+        "address": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["landlordId", "propertyName", "address"]
+    },
+    "Tenant": {
+      "title": "Tenant",
+      "description": "Represents a person renting a property.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "propertyId": { "type": "string" },
+        "landlordId": { "type": "string" },
+        "name": { "type": "string" },
+        "phone": { "type": "string" },
+        "rentAmount": { "type": "number" },
+        "dueDate": { "type": "number", "description": "Day of the month rent is due" },
+        "upiId": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "inactive"] }
+      },
+      "required": ["propertyId", "landlordId", "name", "rentAmount", "dueDate"]
+    },
+    "Invoice": {
+      "title": "Invoice",
+      "description": "Represents a rent payment record.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "tenantId": { "type": "string" },
+        "propertyId": { "type": "string" },
+        "month": { "type": "string", "description": "YYYY-MM format" },
+        "amount": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "paid", "overdue"] },
+        "paymentDate": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "paymentLink": { "type": "string" }
+      },
+      "required": ["tenantId", "propertyId", "month", "amount", "status"]
+    }
+  },
+  "auth": {
+    "providers": ["google"]
+  },
+  "firestore": {
+    "/properties/{propertyId}": {
+      "schema": "Property",
+      "description": "Global properties collection."
+    },
+    "/tenants/{tenantId}": {
+      "schema": "Tenant",
+      "description": "Global tenants collection."
+    },
+    "/invoices/{invoiceId}": {
+      "schema": "Invoice",
+      "description": "Global invoices collection."
+    }
+  }
+}

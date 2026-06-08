@@ -24,8 +24,10 @@ export default function PropertiesPage() {
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {mockProperties.map((property, index) => {
             const tenantCount = mockTenants.filter(t => t.propertyId === property.id).length
-            // Use index to pick a stable image for the prototype, falling back to a default if data is missing
-            const propertyImage = PlaceHolderImages.length > 0 
+            
+            // Safe fallback for images to prevent runtime errors
+            const hasImages = Array.isArray(PlaceHolderImages) && PlaceHolderImages.length > 0;
+            const propertyImage = hasImages 
               ? PlaceHolderImages[index % PlaceHolderImages.length] 
               : { imageUrl: 'https://picsum.photos/seed/default/800/600', imageHint: 'property' };
             
@@ -33,11 +35,11 @@ export default function PropertiesPage() {
               <Card key={property.id} className="overflow-hidden hover:shadow-lg transition-all group border-border/60">
                 <div className="relative h-48 w-full overflow-hidden">
                   <Image 
-                    src={propertyImage.imageUrl} 
+                    src={propertyImage.imageUrl || 'https://picsum.photos/seed/default/800/600'} 
                     alt={property.propertyName}
                     fill
                     className="object-cover group-hover:scale-105 transition-transform duration-500"
-                    data-ai-hint={propertyImage.imageHint}
+                    data-ai-hint={propertyImage.imageHint || 'property'}
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                   <div className="absolute bottom-4 left-4 text-white">
