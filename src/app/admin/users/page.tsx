@@ -5,10 +5,10 @@ import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Loader2, Search, Mail, ShieldCheck, UserCheck, Plus, AlertCircle, MoreVertical, Edit, Trash2 } from "lucide-react"
+import { Loader2, Search, Mail, ShieldCheck, UserCheck, Plus, AlertCircle, MoreVertical, Edit, Trash2, Key } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { useFirestore, useCollection, useMemoFirebase } from "@/firebase"
+import { useFirestore, useCollection, useMemoFirebase, useAuth } from "@/firebase"
 import { collection, query, orderBy, doc, setDoc, deleteDoc, updateDoc } from "firebase/firestore"
 import { User } from "@/lib/types"
 import { useProfile } from "@/hooks/use-profile"
@@ -20,7 +20,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { initializeApp, deleteApp } from "firebase/app"
-import { getAuth, createUserWithEmailAndPassword, signOut as authSignOut } from "firebase/auth"
+import { getAuth, createUserWithEmailAndPassword, sendPasswordResetEmail, signOut as authSignOut } from "firebase/auth"
 import { firebaseConfig } from "@/firebase/config"
 import { errorEmitter } from "@/firebase/error-emitter"
 import { FirestorePermissionError } from "@/firebase/errors"
@@ -29,6 +29,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 export default function UserManagementPage() {
   const { isAdmin, profile, loading: authLoading } = useProfile()
   const db = useFirestore()
+  const auth = useAuth()
   const { toast } = useToast()
   
   const [searchTerm, setSearchTerm] = useState("")
@@ -142,14 +143,15 @@ export default function UserManagementPage() {
 
     const formData = new FormData(e.currentTarget)
     const name = formData.get("name") as string
+    const email = formData.get("email") as string
     const role = formData.get("role") as 'landlord' | 'super-admin'
 
     const userRef = doc(db, "users", selectedUser.id)
-    updateDoc(userRef, { name, role })
+    updateDoc(userRef, { name, email, role })
       .then(() => {
         toast({
           title: "User Updated",
-          description: "Profile changes saved successfully.",
+          description: "Profile changes saved successfully in Firestore.",
         })
         setIsEditDialogOpen(false)
       })
@@ -157,11 +159,27 @@ export default function UserManagementPage() {
         const permissionError = new FirestorePermissionError({
           path: `users/${selectedUser.id}`,
           operation: "update",
-          requestResourceData: { name, role },
+          requestResourceData: { name, role, email },
         })
         errorEmitter.emit("permission-error", permissionError)
       })
       .finally(() => setIsSubmitting(false))
+  }
+
+  const handlePasswordReset = async (email: string) => {
+    try {
+      await sendPasswordResetEmail(auth, email)
+      toast({
+        title: "Reset Link Sent",
+        description: `A password reset instructions have been sent to ${email}.`,
+      })
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Failed to Reset",
+        description: error.message || "Could not initiate password reset.",
+      })
+    }
   }
 
   const handleDeleteUser = async (userId: string) => {
@@ -324,9 +342,13 @@ export default function UserManagementPage() {
                             }}>
                               <Edit className="mr-2 size-4" /> Edit Profile
                             </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handlePasswordReset(user.email)}>
+                              <Key className="mr-2 size-4" /> Reset Password
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
-                                <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive">
+                                <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive font-semibold">
                                   <Trash2 className="mr-2 size-4" /> Remove User
                                 </DropdownMenuItem>
                               </AlertDialogTrigger>
@@ -368,13 +390,18 @@ export default function UserManagementPage() {
               <DialogHeader>
                 <DialogTitle>Edit User Profile</DialogTitle>
                 <DialogDescription>
-                  Modify roles and basic information for {selectedUser.email}.
+                  Modify roles and basic information for this user.
                 </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
                 <div className="grid gap-2">
                   <Label htmlFor="edit-name">Display Name</Label>
                   <Input id="edit-name" name="name" defaultValue={selectedUser.name} required />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-email">Email Address</Label>
+                  <Input id="edit-email" name="email" type="email" defaultValue={selectedUser.email} required />
+                  <p className="text-[10px] text-muted-foreground">Changing this updates the profile. The user should use this for future comms.</p>
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="edit-role">Platform Role</Label>

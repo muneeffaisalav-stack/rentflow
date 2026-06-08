@@ -7,10 +7,9 @@ import { firebaseConfig } from './config';
 /**
  * Initializes the Firebase app and core services.
  * Note: A change to this file triggers a deployment of Security Rules.
- * Explicitly triggering redeployment to ensure the 'super-admin' role defined 
- * in backend.json for /users, /properties, /tenants, and /invoices is correctly 
- * processed by the rule generator to allow global listing.
- * Latest trigger: Enabling update and delete actions for administrators in User Management.
+ * Triggering redeployment to ensure explicit 'super-admin' overrides for all root collections 
+ * (/users, /properties, /tenants, /invoices) are correctly processed to resolve permission errors.
+ * Latest trigger: Adding email/password management capabilities for administrators.
  */
 export function initializeFirebase() {
   const firebaseApp = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
