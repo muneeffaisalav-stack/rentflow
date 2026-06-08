@@ -11,7 +11,7 @@ import {
   GoogleAuthProvider,
   signInWithPopup
 } from "firebase/auth"
-import { doc, setDoc, getDoc } from "firebase/firestore"
+import { doc, setDoc, getDoc, updateDoc } from "firebase/firestore"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -33,17 +33,24 @@ export default function LoginPage() {
     const userRef = doc(db, "users", user.uid)
     const userDoc = await getDoc(userRef)
     
+    // Always check if this specific email should be a super-admin
+    const isAdminEmail = user.email === "admin@rentflow.com"
+    const targetRole = isAdminEmail ? "super-admin" : "landlord"
+
     if (!userDoc.exists()) {
-      // Automatically assign 'super-admin' role to admin@rentflow.com
-      const role = user.email === "admin@rentflow.com" ? "super-admin" : "landlord";
-      
       await setDoc(userRef, {
         id: user.uid,
         name: name || user.displayName || "User",
         email: user.email,
-        role: role,
+        role: targetRole,
         createdAt: new Date().toISOString()
       })
+    } else {
+      const currentData = userDoc.data()
+      // If the email is the admin email but role is wrong, update it automatically
+      if (isAdminEmail && currentData.role !== "super-admin") {
+        await updateDoc(userRef, { role: "super-admin" })
+      }
     }
   }
 
