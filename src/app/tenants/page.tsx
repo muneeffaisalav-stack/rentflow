@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { 
   Table, 
@@ -18,10 +19,10 @@ import {
   MoreHorizontal, 
   MessageSquare, 
   Phone,
-  Building
+  Building,
+  Loader2
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
-import { mockTenants, mockProperties } from "@/lib/mock-data"
 import { Badge } from "@/components/ui/badge"
 import { 
   DropdownMenu, 
@@ -30,15 +31,71 @@ import {
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu"
 import { useToast } from "@/hooks/use-toast"
+import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase"
+import { collection, query, where, addDoc } from "firebase/firestore"
+import { Tenant, Property } from "@/lib/types"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { errorEmitter } from "@/firebase/error-emitter"
+import { FirestorePermissionError } from "@/firebase/errors"
 
 export default function TenantsPage() {
   const { toast } = useToast()
+  const { user } = useUser()
+  const db = useFirestore()
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const propertiesQuery = useMemoFirebase(() => {
+    if (!db || !user) return null
+    return query(collection(db, "properties"), where("landlordId", "==", user.uid))
+  }, [db, user])
+  const { data: properties } = useCollection<Property>(propertiesQuery)
+
+  const tenantsQuery = useMemoFirebase(() => {
+    if (!db || !user) return null
+    return query(collection(db, "tenants"), where("landlordId", "==", user.uid))
+  }, [db, user])
+  const { data: tenants, loading } = useCollection<Tenant>(tenantsQuery)
+
+  const handleAddTenant = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    if (!user || !db) return
+
+    setIsSubmitting(true)
+    const formData = new FormData(e.currentTarget)
+    const tenantData = {
+      name: formData.get("name") as string,
+      phone: formData.get("phone") as string,
+      rentAmount: Number(formData.get("rent")),
+      dueDate: Number(formData.get("dueDate")),
+      upiId: formData.get("upi") as string,
+      propertyId: formData.get("propertyId") as string,
+      landlordId: user.uid,
+      status: 'active',
+    }
+
+    addDoc(collection(db, "tenants"), tenantData)
+      .then(() => {
+        setIsDialogOpen(false)
+        setIsSubmitting(false)
+        toast({ title: "Tenant Added", description: `${tenantData.name} has been successfully registered.` })
+      })
+      .catch(async () => {
+        const permissionError = new FirestorePermissionError({
+          path: "tenants",
+          operation: "create",
+          requestResourceData: tenantData,
+        })
+        errorEmitter.emit("permission-error", permissionError)
+        setIsSubmitting(false)
+      })
+  }
 
   const handleSendReminder = (tenantId: string) => {
-    const tenant = mockTenants.find(t => t.id === tenantId)
+    const tenant = tenants.find(t => t.id === tenantId)
     if (!tenant) return
-
-    // Simple simulation of sending a reminder
     toast({
       title: "Reminder Sent",
       description: `A rent reminder has been drafted for ${tenant.name}.`,
@@ -53,10 +110,70 @@ export default function TenantsPage() {
             <h2 className="text-3xl font-headline font-bold tracking-tight">Tenants</h2>
             <p className="text-muted-foreground">Manage tenant records and communication.</p>
           </div>
-          <Button className="gap-2 self-start md:self-auto">
-            <Plus className="size-4" />
-            Add Tenant
-          </Button>
+          
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="gap-2 self-start md:self-auto">
+                <Plus className="size-4" />
+                Add Tenant
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <form onSubmit={handleAddTenant}>
+                <DialogHeader>
+                  <DialogTitle>Register New Tenant</DialogTitle>
+                  <DialogDescription>
+                    Onboard a new tenant to one of your properties.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="propertyId">Property</Label>
+                    <Select name="propertyId" required>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a property" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {properties.map(p => (
+                          <SelectItem key={p.id} value={p.id!}>{p.propertyName}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="name">Tenant Name</Label>
+                    <Input id="name" name="name" placeholder="John Doe" required />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="phone">Phone Number</Label>
+                      <Input id="phone" name="phone" placeholder="+91..." required />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="rent">Monthly Rent (₹)</Label>
+                      <Input id="rent" name="rent" type="number" placeholder="25000" required />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="dueDate">Due Date (Day of Month)</Label>
+                      <Input id="dueDate" name="dueDate" type="number" min="1" max="31" placeholder="5" required />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="upi">UPI ID</Label>
+                      <Input id="upi" name="upi" placeholder="name@upi" required />
+                    </div>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button type="submit" disabled={isSubmitting}>
+                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Add Tenant
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
         </div>
 
         <Card>
@@ -78,80 +195,90 @@ export default function TenantsPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead>Tenant</TableHead>
-                  <TableHead>Property</TableHead>
-                  <TableHead>Rent Info</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {mockTenants.map((tenant) => {
-                  const property = mockProperties.find(p => p.id === tenant.propertyId)
-                  return (
-                    <TableRow key={tenant.id} className="group transition-colors">
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <div className="size-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold">
-                            {tenant.name.charAt(0)}
-                          </div>
-                          <div>
-                            <div className="font-semibold">{tenant.name}</div>
-                            <div className="text-xs text-muted-foreground flex items-center gap-1">
-                              <Phone className="size-3" /> {tenant.phone}
+            {loading ? (
+              <div className="flex justify-center p-12">
+                <Loader2 className="animate-spin text-primary" />
+              </div>
+            ) : tenants.length === 0 ? (
+              <div className="text-center p-12 text-muted-foreground">
+                No tenants found. Add your first tenant to get started.
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead>Tenant</TableHead>
+                    <TableHead>Property</TableHead>
+                    <TableHead>Rent Info</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {tenants.map((tenant) => {
+                    const property = properties.find(p => p.id === tenant.propertyId)
+                    return (
+                      <TableRow key={tenant.id} className="group transition-colors">
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <div className="size-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold">
+                              {tenant.name.charAt(0)}
+                            </div>
+                            <div>
+                              <div className="font-semibold">{tenant.name}</div>
+                              <div className="text-xs text-muted-foreground flex items-center gap-1">
+                                <Phone className="size-3" /> {tenant.phone}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1.5">
-                          <Building className="size-4 text-muted-foreground" />
-                          <span className="text-sm font-medium">{property?.propertyName}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <div className="font-bold">₹{tenant.rentAmount.toLocaleString()}</div>
-                          <div className="text-xs text-muted-foreground">Due: Day {tenant.dueDate}</div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={tenant.status === 'active' ? 'default' : 'secondary'}>
-                          {tenant.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="text-primary hover:text-primary hover:bg-primary/10"
-                            onClick={() => handleSendReminder(tenant.id)}
-                          >
-                            <MessageSquare className="size-4" />
-                          </Button>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon">
-                                <MoreHorizontal className="size-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem>View Profile</DropdownMenuItem>
-                              <DropdownMenuItem>Edit Record</DropdownMenuItem>
-                              <DropdownMenuItem className="text-destructive">Archive Tenant</DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1.5">
+                            <Building className="size-4 text-muted-foreground" />
+                            <span className="text-sm font-medium">{property?.propertyName || 'Unknown'}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div>
+                            <div className="font-bold">₹{tenant.rentAmount.toLocaleString()}</div>
+                            <div className="text-xs text-muted-foreground">Due: Day {tenant.dueDate}</div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={tenant.status === 'active' ? 'default' : 'secondary'}>
+                            {tenant.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="text-primary hover:text-primary hover:bg-primary/10"
+                              onClick={() => handleSendReminder(tenant.id!)}
+                            >
+                              <MessageSquare className="size-4" />
+                            </Button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon">
+                                  <MoreHorizontal className="size-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem>View Profile</DropdownMenuItem>
+                                <DropdownMenuItem>Edit Record</DropdownMenuItem>
+                                <DropdownMenuItem className="text-destructive">Archive Tenant</DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+            )}
           </CardContent>
         </Card>
       </div>
