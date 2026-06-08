@@ -1,4 +1,3 @@
-
 "use client"
 
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
@@ -22,7 +21,7 @@ import {
   Building
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
-import { mockTenants, mockProperties, mockInvoices } from "@/lib/mock-data"
+import { mockTenants, mockProperties } from "@/lib/mock-data"
 import { Badge } from "@/components/ui/badge"
 import { 
   DropdownMenu, 
@@ -30,49 +29,20 @@ import {
   DropdownMenuItem, 
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu"
-import { intelligentRentReminder } from "@/ai/flows/intelligent-rent-reminder"
 import { useToast } from "@/hooks/use-toast"
-import { useState } from "react"
 
 export default function TenantsPage() {
   const { toast } = useToast()
-  const [loadingReminder, setLoadingReminder] = useState<string | null>(null)
 
-  const handleSendReminder = async (tenantId: string) => {
-    setLoadingReminder(tenantId)
+  const handleSendReminder = (tenantId: string) => {
     const tenant = mockTenants.find(t => t.id === tenantId)
     if (!tenant) return
 
-    const history = mockInvoices
-      .filter(i => i.tenantId === tenantId)
-      .map(i => ({ month: i.month, status: i.status }))
-
-    try {
-      const response = await intelligentRentReminder({
-        tenantName: tenant.name,
-        amount: tenant.rentAmount,
-        dueDate: `Day ${tenant.dueDate} of the month`,
-        paymentLink: `upi://pay?pa=${tenant.upiId}&am=${tenant.rentAmount}`,
-        paymentHistory: history,
-        reminderType: 'due_soon'
-      })
-
-      // Simulate sending via WhatsApp
-      console.log("Generated WhatsApp Message:", response.reminderMessage)
-      
-      toast({
-        title: "Reminder Generated",
-        description: `Message for ${tenant.name} is ready for WhatsApp.`,
-      })
-    } catch (err) {
-      toast({
-        variant: "destructive",
-        title: "Generation Failed",
-        description: "Could not generate reminder using AI.",
-      })
-    } finally {
-      setLoadingReminder(null)
-    }
+    // Simple simulation of sending a reminder
+    toast({
+      title: "Reminder Sent",
+      description: `A rent reminder has been drafted for ${tenant.name}.`,
+    })
   }
 
   return (
@@ -160,9 +130,8 @@ export default function TenantsPage() {
                             size="icon" 
                             className="text-primary hover:text-primary hover:bg-primary/10"
                             onClick={() => handleSendReminder(tenant.id)}
-                            disabled={loadingReminder === tenant.id}
                           >
-                            <MessageSquare className={`size-4 ${loadingReminder === tenant.id ? 'animate-pulse' : ''}`} />
+                            <MessageSquare className="size-4" />
                           </Button>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
