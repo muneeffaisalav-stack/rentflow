@@ -1,6 +1,8 @@
+
 "use client"
 
 import { useState } from "react"
+import Link from "next/navigation"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { 
   Table, 
@@ -20,7 +22,8 @@ import {
   Phone,
   Building,
   Loader2,
-  Mail
+  Mail,
+  Eye
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -46,6 +49,7 @@ export default function TenantsPage() {
   const db = useFirestore()
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [searchTerm, setSearchTerm] = useState("")
   
   const propertiesQuery = useMemoFirebase(() => {
     if (!db || !user) return null
@@ -92,6 +96,11 @@ export default function TenantsPage() {
         setIsSubmitting(false)
       })
   }
+
+  const filteredTenants = tenants.filter(t => 
+    t.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    t.phone.includes(searchTerm)
+  )
 
   return (
     <DashboardLayout>
@@ -177,6 +186,8 @@ export default function TenantsPage() {
                   <Input 
                     placeholder="Search tenants..." 
                     className="pl-8 w-[250px] bg-muted/50"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
                   />
                 </div>
                 <Button variant="outline" size="icon">
@@ -190,7 +201,7 @@ export default function TenantsPage() {
               <div className="flex justify-center p-12">
                 <Loader2 className="animate-spin text-primary" />
               </div>
-            ) : tenants.length === 0 ? (
+            ) : filteredTenants.length === 0 ? (
               <div className="text-center p-12 text-muted-foreground">
                 No tenants found. Add your first tenant to get started.
               </div>
@@ -206,7 +217,7 @@ export default function TenantsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {tenants.map((tenant) => {
+                  {filteredTenants.map((tenant) => {
                     const property = properties.find(p => p.id === tenant.propertyId)
                     return (
                       <TableRow key={tenant.id} className="group transition-colors">
@@ -242,6 +253,11 @@ export default function TenantsPage() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-2">
+                            <Link href={`/tenants/${tenant.id}`}>
+                              <Button variant="ghost" size="icon" title="View details">
+                                <Eye className="size-4" />
+                              </Button>
+                            </Link>
                             <Button variant="ghost" size="icon" title="Send reminder">
                               <Mail className="size-4" />
                             </Button>
@@ -252,7 +268,9 @@ export default function TenantsPage() {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                <DropdownMenuItem>View Profile</DropdownMenuItem>
+                                <DropdownMenuItem asChild>
+                                  <Link href={`/tenants/${tenant.id}`}>View Profile</Link>
+                                </DropdownMenuItem>
                                 <DropdownMenuItem>Edit Record</DropdownMenuItem>
                                 <DropdownMenuItem className="text-destructive">Archive Tenant</DropdownMenuItem>
                               </DropdownMenuContent>
