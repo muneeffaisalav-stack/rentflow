@@ -80,7 +80,7 @@
     },
     "/invoices/{invoiceId}": {
       "schema": "Invoice",
-      "description": "Rental invoices. Rules: Landlords can read/write documents where 'landlordId' equals their UID. A user with role 'super-admin' in their profile at /users/{request.auth.uid} has full global access (list, get, create, update, delete) to all documents in this collection."
+      "description": "Rental invoices. Rules: Landlords can list, get, create, and update documents where 'landlordId' equals their UID. A user with role 'super-admin' in their profile at /users/{request.auth.uid} is explicitly authorized to list, get, create, update, and delete all documents in this root collection without filtering."
     }
   }
 }

@@ -7,9 +7,10 @@ import { firebaseConfig } from './config';
 /**
  * Initializes the Firebase app and core services.
  * Note: A change to this file triggers a deployment of Security Rules.
- * Triggering redeployment to ensure explicit 'super-admin' overrides for all root collections 
- * (/users, /properties, /tenants, /invoices) are correctly processed to resolve permission errors.
- * Latest trigger: Adding mandatory landlordId filters to detail page queries for invoices.
+ * Explicitly triggering redeployment to resolve persistent 'Missing or insufficient permissions' 
+ * on the /invoices collection by providing more detailed access control intents for super-admins 
+ * and mandatory landlordId filters.
+ * Latest Trigger: Strengthening super-admin global list access for /invoices.
  */
 export function initializeFirebase() {
   const firebaseApp = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);

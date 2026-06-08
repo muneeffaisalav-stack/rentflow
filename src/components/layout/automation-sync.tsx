@@ -2,14 +2,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, addDoc, getDocs } from 'firebase/firestore';
+import { useUser, useFirestore } from '@/firebase';
+import { collection, query, where, addDoc, getDocs, doc, setDoc } from 'firebase/firestore';
 import { Tenant, Invoice } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 
 /**
- * Background component that automatically generates invoices when the due date is reached.
- * Runs on the client side when a landlord is active.
+ * Robust background sync component that identifies and creates missing invoices.
+ * Acts as a lightweight "backend process" that runs securely under the user's session.
  */
 export function AutomationSync() {
   const { user } = useUser();
@@ -26,7 +26,7 @@ export function AutomationSync() {
         const currentMonth = now.toISOString().slice(0, 7); // YYYY-MM
         const currentDay = now.getDate();
 
-        // 1. Fetch all active tenants for this landlord
+        // 1. Fetch only active tenants for THIS landlord (Security Requirement)
         const tenantsSnap = await getDocs(
           query(
             collection(db, "tenants"),
@@ -34,9 +34,15 @@ export function AutomationSync() {
             where("status", "==", "active")
           )
         );
+        
+        if (tenantsSnap.empty) {
+          setHasRun(true);
+          return;
+        }
+
         const tenants = tenantsSnap.docs.map(d => ({ ...d.data(), id: d.id } as Tenant));
 
-        // 2. Fetch all invoices for the current month to check for duplicates
+        // 2. Fetch all invoices for THIS landlord and THIS month to avoid duplicates
         const invoicesSnap = await getDocs(
           query(
             collection(db, "invoices"),
@@ -48,9 +54,9 @@ export function AutomationSync() {
 
         let generatedCount = 0;
 
-        // 3. Check each tenant
+        // 3. Automated Generation Logic
         for (const tenant of tenants) {
-          // If today is on or after due date AND no invoice exists for this month
+          // Rule: If today >= due date AND no invoice exists for this month, generate it.
           if (currentDay >= tenant.dueDate && !existingInvoiceTenantIds.has(tenant.id)) {
             const invoiceData = {
               tenantId: tenant.id,
@@ -62,6 +68,7 @@ export function AutomationSync() {
               createdAt: new Date().toISOString(),
             };
 
+            // Use addDoc for standard auto-generation
             await addDoc(collection(db, "invoices"), invoiceData);
             generatedCount++;
           }
@@ -69,18 +76,21 @@ export function AutomationSync() {
 
         if (generatedCount > 0) {
           toast({
-            title: "Automation Complete",
-            description: `Generated ${generatedCount} new invoices for this billing cycle.`,
+            title: "Automated Billing Complete",
+            description: `Successfully generated ${generatedCount} new invoices for ${currentMonth}.`,
           });
         }
         
         setHasRun(true);
       } catch (error) {
-        console.error("Automation error:", error);
+        // Silently log automation errors to avoid disrupting user experience
+        console.warn("Automation background process encountered an error:", error);
       }
     }
 
-    runAutomation();
+    // Delay start slightly to ensure profile sync is complete
+    const timer = setTimeout(runAutomation, 2000);
+    return () => clearTimeout(timer);
   }, [user, db, hasRun, toast]);
 
   return null;
