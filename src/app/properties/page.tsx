@@ -1,4 +1,3 @@
-
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -23,9 +22,12 @@ export default function PropertiesPage() {
         </div>
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {mockProperties.map((property) => {
+          {mockProperties.map((property, index) => {
             const tenantCount = mockTenants.filter(t => t.propertyId === property.id).length
-            const propertyImage = PlaceHolderImages[Math.floor(Math.random() * PlaceHolderImages.length)]
+            // Use index to pick a stable image for the prototype, falling back to a default if data is missing
+            const propertyImage = PlaceHolderImages.length > 0 
+              ? PlaceHolderImages[index % PlaceHolderImages.length] 
+              : { imageUrl: 'https://picsum.photos/seed/default/800/600', imageHint: 'property' };
             
             return (
               <Card key={property.id} className="overflow-hidden hover:shadow-lg transition-all group border-border/60">
