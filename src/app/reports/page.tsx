@@ -1,3 +1,4 @@
+
 "use client"
 
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
@@ -39,8 +40,13 @@ export default function ReportsPage() {
   const { data: properties, loading: pLoading } = useCollection<Property>(propertiesQuery)
 
   const invoicesQuery = useMemoFirebase(() => {
-    if (!db || !user) return null
-    return query(collection(db, "invoices"), where("propertyId", "in", properties.length > 0 ? properties.map(p => p.id) : ["none"]))
+    // Prevent fetching if properties are still loading or if none exist for a landlord.
+    // This prevents permission errors caused by listing a collection without proper scope.
+    if (!db || !user || properties.length === 0) return null
+    return query(
+      collection(db, "invoices"), 
+      where("propertyId", "in", properties.map(p => p.id))
+    )
   }, [db, user, properties])
   const { data: invoices, loading: iLoading } = useCollection<Invoice>(invoicesQuery)
 
