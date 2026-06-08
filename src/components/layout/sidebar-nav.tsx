@@ -60,7 +60,7 @@ export function SidebarNav() {
         title: "Signed Out",
         description: "Successfully logged out of your account.",
       })
-      router.push("/login")
+      router.push("/")
     } catch (error: any) {
       toast({
         variant: "destructive",

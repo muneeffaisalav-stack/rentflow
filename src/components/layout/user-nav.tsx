@@ -17,11 +17,13 @@ import { signOut } from "firebase/auth"
 import { LogIn, LogOut, User, Settings, CreditCard } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 
 export function UserNav() {
   const { user, loading } = useUser()
   const auth = useAuth()
   const { toast } = useToast()
+  const router = useRouter()
 
   const handleSignOut = async () => {
     try {
@@ -30,6 +32,7 @@ export function UserNav() {
         title: "Signed Out",
         description: "You have been successfully logged out.",
       })
+      router.push("/")
     } catch (error: any) {
       toast({
         variant: "destructive",
