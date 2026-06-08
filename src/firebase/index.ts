@@ -8,6 +8,7 @@ import { firebaseConfig } from './config';
  * Initializes the Firebase app and core services.
  * Note: A change to this file triggers a deployment of Security Rules to 
  * ensure roles like 'super-admin' are correctly recognized for system-wide access.
+ * Triggering redeployment to fix intermittent collection list permission errors.
  */
 export function initializeFirebase() {
   const firebaseApp = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);

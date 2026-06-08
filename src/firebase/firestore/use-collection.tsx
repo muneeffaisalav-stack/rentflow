@@ -24,12 +24,15 @@ export function useCollection<T>(query: Query | null) {
         setLoading(false);
       },
       async (error) => {
-        // We can't easily get the path from a Query in the same way, 
-        // but we can try to find it from the internal query object if needed.
+        // Log the error internally and emit a contextual permission error
+        // We try to extract a path hint from the query object if available
+        const pathHint = (query as any)._query?.path?.segments?.join('/') || 'collection';
+        
         const permissionError = new FirestorePermissionError({
-          path: 'collection',
+          path: pathHint,
           operation: 'list',
         });
+        
         errorEmitter.emit('permission-error', permissionError);
         setLoading(false);
       }

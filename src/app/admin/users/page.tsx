@@ -43,7 +43,19 @@ export default function UserManagementPage() {
 
   const { data: users, loading: uLoading } = useCollection<User>(usersQuery)
 
-  if (authLoading) return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin" /></div>
+  if (authLoading || (isAdmin && !profile)) {
+    return (
+      <DashboardLayout>
+        <div className="flex h-[60vh] items-center justify-center">
+          <div className="flex flex-col items-center gap-2">
+            <Loader2 className="animate-spin text-primary size-8" />
+            <p className="text-sm text-muted-foreground font-medium">Authorizing User Management...</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    )
+  }
+
   if (!isAdmin) redirect("/dashboard")
 
   const handleAddUser = async (e: React.FormEvent<HTMLFormElement>) => {

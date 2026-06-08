@@ -15,7 +15,7 @@ export default function AdminPage() {
   const db = useFirestore()
 
   // Only attempt to create collection references if we are confirmed as an admin in the database
-  // this avoids triggering permission errors before the role sync completes
+  // and the profile has been fully loaded and verified.
   const canFetchAdminData = isAdmin && profile?.role === 'super-admin'
 
   const usersColl = useMemoFirebase(() => {
@@ -43,7 +43,19 @@ export default function AdminPage() {
   const { data: tenants, loading: tLoading } = useCollection<Tenant>(tenantsColl)
   const { data: invoices, loading: iLoading } = useCollection<Invoice>(invoicesColl)
 
-  if (authLoading) return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin" /></div>
+  if (authLoading || (isAdmin && !profile)) {
+    return (
+      <DashboardLayout>
+        <div className="flex h-[60vh] items-center justify-center">
+          <div className="flex flex-col items-center gap-2">
+            <Loader2 className="animate-spin text-primary size-8" />
+            <p className="text-sm text-muted-foreground font-medium">Verifying Administrator Access...</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    )
+  }
+
   if (!isAdmin) redirect("/dashboard")
 
   const totalRevenue = invoices
