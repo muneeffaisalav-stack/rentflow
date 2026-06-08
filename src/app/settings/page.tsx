@@ -9,9 +9,8 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase"
-import { updateProfile } from "firebase/auth"
 import { doc, updateDoc } from "firebase/firestore"
-import { User, Bell, Shield, Wallet, Loader2 } from "lucide-react"
+import { Bell, Wallet, Loader2, Settings } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { User as UserProfile } from "@/lib/types"
 
@@ -39,30 +38,25 @@ export default function SettingsPage() {
     }
   }, [profile])
 
-  const handleUpdateProfile = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleUpdateSettings = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     if (!user || !db) return
 
     setIsUpdating(true)
     const formData = new FormData(e.currentTarget)
-    const displayName = formData.get("name") as string
     const upiId = formData.get("upi") as string
 
     try {
-      // Update Auth Profile
-      await updateProfile(user, { displayName })
-      
-      // Update Firestore Profile
+      // Update Firestore Settings
       const userDocRef = doc(db, "users", user.uid)
       await updateDoc(userDocRef, {
-        name: displayName,
         upiId: upiId,
         notifications: notifications
       })
 
       toast({
-        title: "Settings Saved",
-        description: "Your preferences and profile have been updated.",
+        title: "Preferences Saved",
+        description: "Your application settings have been updated.",
       })
     } catch (error: any) {
       toast({
@@ -89,91 +83,72 @@ export default function SettingsPage() {
     <DashboardLayout>
       <div className="space-y-8 max-w-4xl">
         <div>
-          <h2 className="text-3xl font-headline font-bold tracking-tight">Settings</h2>
-          <p className="text-muted-foreground">Manage your account and app preferences.</p>
+          <h2 className="text-3xl font-headline font-bold tracking-tight text-primary flex items-center gap-3">
+             <Settings className="size-8" />
+             App Settings
+          </h2>
+          <p className="text-muted-foreground">Configure your payments and notification preferences.</p>
         </div>
 
-        <div className="grid gap-6">
-          <form onSubmit={handleUpdateProfile}>
-            <div className="grid gap-6">
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center gap-2">
-                    <User className="size-5 text-primary" />
-                    <CardTitle className="text-lg">Profile Information</CardTitle>
-                  </div>
-                  <CardDescription>Update your personal and contact details.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="name">Display Name</Label>
-                    <Input id="name" name="name" defaultValue={profile?.name || user?.displayName || ""} placeholder="John Doe" required />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="email">Email Address</Label>
-                    <Input id="email" defaultValue={user?.email || ""} disabled className="bg-muted/50" />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center gap-2">
-                    <Wallet className="size-5 text-primary" />
-                    <CardTitle className="text-lg">Payment Gateway</CardTitle>
-                  </div>
-                  <CardDescription>Configure your UPI ID for rent collection reminders.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="upi">Your UPI ID (Receiver)</Label>
-                    <Input id="upi" name="upi" defaultValue={profile?.upiId || ""} placeholder="yourname@upi" />
-                    <p className="text-[10px] text-muted-foreground italic">This ID is included in automated WhatsApp messages to tenants.</p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center gap-2">
-                    <Bell className="size-5 text-primary" />
-                    <CardTitle className="text-lg">Notifications</CardTitle>
-                  </div>
-                  <CardDescription>Choose how you want to be notified about payments.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label>Payment Received</Label>
-                      <p className="text-sm text-muted-foreground">Notify me when a tenant pays rent.</p>
-                    </div>
-                    <Switch 
-                      checked={notifications.paymentReceived} 
-                      onCheckedChange={(val) => setNotifications(prev => ({ ...prev, paymentReceived: val }))} 
-                    />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label>Overdue Alerts</Label>
-                      <p className="text-sm text-muted-foreground">Notify me when rent is 3 days overdue.</p>
-                    </div>
-                    <Switch 
-                      checked={notifications.overdueAlerts} 
-                      onCheckedChange={(val) => setNotifications(prev => ({ ...prev, overdueAlerts: val }))} 
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <div className="flex justify-end">
-                <Button type="submit" size="lg" disabled={isUpdating} className="w-full md:w-auto px-12">
-                  {isUpdating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Save All Settings
-                </Button>
+        <form onSubmit={handleUpdateSettings} className="space-y-6">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Wallet className="size-5 text-primary" />
+                <CardTitle className="text-lg">Payment Gateway</CardTitle>
               </div>
-            </div>
-          </form>
-        </div>
+              <CardDescription>Configure your default receiver UPI ID for automated tenant reminders.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-2">
+                <Label htmlFor="upi">Your Receiver UPI ID</Label>
+                <Input id="upi" name="upi" defaultValue={profile?.upiId || ""} placeholder="landlord@upi" />
+                <p className="text-[11px] text-muted-foreground italic bg-muted/30 p-2 rounded">
+                  This ID is embedded in the WhatsApp reminders sent to tenants to simplify the payment process.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Bell className="size-5 text-primary" />
+                <CardTitle className="text-lg">Communication Preferences</CardTitle>
+              </div>
+              <CardDescription>Decide when you want to receive system alerts.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between py-2 border-b">
+                <div className="space-y-0.5">
+                  <Label>Payment Notifications</Label>
+                  <p className="text-xs text-muted-foreground">Get notified immediately when a tenant settles an invoice.</p>
+                </div>
+                <Switch 
+                  checked={notifications.paymentReceived} 
+                  onCheckedChange={(val) => setNotifications(prev => ({ ...prev, paymentReceived: val }))} 
+                />
+              </div>
+              <div className="flex items-center justify-between py-2">
+                <div className="space-y-0.5">
+                  <Label>Automated Overdue Alerts</Label>
+                  <p className="text-xs text-muted-foreground">Receive a summary of tenants who are past their due date.</p>
+                </div>
+                <Switch 
+                  checked={notifications.overdueAlerts} 
+                  onCheckedChange={(val) => setNotifications(prev => ({ ...prev, overdueAlerts: val }))} 
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="flex justify-end">
+            <Button type="submit" size="lg" disabled={isUpdating} className="w-full md:w-auto px-12 font-bold shadow-lg">
+              {isUpdating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Update Preferences
+            </Button>
+          </div>
+        </form>
       </div>
     </DashboardLayout>
   )
