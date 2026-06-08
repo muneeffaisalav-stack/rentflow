@@ -13,31 +13,15 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useAuth, useUser } from "@/firebase"
-import { GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth"
+import { signOut } from "firebase/auth"
 import { LogIn, LogOut, User, Settings, CreditCard } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import Link from "next/link"
 
 export function UserNav() {
   const { user, loading } = useUser()
   const auth = useAuth()
   const { toast } = useToast()
-
-  const handleSignIn = async () => {
-    const provider = new GoogleAuthProvider()
-    try {
-      await signInWithPopup(auth, provider)
-      toast({
-        title: "Signed In",
-        description: "Welcome to RentFlow!",
-      })
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Authentication Error",
-        description: error.message || "Failed to sign in with Google.",
-      })
-    }
-  }
 
   const handleSignOut = async () => {
     try {
@@ -61,14 +45,16 @@ export function UserNav() {
 
   if (!user) {
     return (
-      <Button variant="outline" size="sm" onClick={handleSignIn} className="gap-2">
-        <LogIn className="size-4" />
-        Sign In
-      </Button>
+      <Link href="/login">
+        <Button variant="outline" size="sm" className="gap-2">
+          <LogIn className="size-4" />
+          Sign In
+        </Button>
+      </Link>
     )
   }
 
-  const initials = user.displayName?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U'
+  const initials = user.displayName?.split(' ').map(n => n[0]).join('').toUpperCase() || user.email?.charAt(0).toUpperCase() || 'U'
 
   return (
     <DropdownMenu>
@@ -83,7 +69,7 @@ export function UserNav() {
       <DropdownMenuContent className="w-56" align="end" forceMount>
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">{user.displayName}</p>
+            <p className="text-sm font-medium leading-none">{user.displayName || "User"}</p>
             <p className="text-xs leading-none text-muted-foreground">
               {user.email}
             </p>

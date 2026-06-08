@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "Property": {
@@ -49,7 +50,7 @@
     }
   },
   "auth": {
-    "providers": ["google"]
+    "providers": ["google", "password"]
   },
   "firestore": {
     "/properties/{propertyId}": {
