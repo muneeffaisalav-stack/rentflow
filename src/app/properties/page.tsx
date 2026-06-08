@@ -2,14 +2,15 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Building2, MapPin, Plus, MoreVertical, Users, Loader2, AlertCircle } from "lucide-react"
+import { Building2, MapPin, Plus, MoreVertical, Users, Loader2, AlertCircle, Edit, Eye } from "lucide-react"
 import Image from "next/image"
 import { PlaceHolderImages } from "@/lib/placeholder-images"
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase"
-import { collection, query, where, addDoc } from "firebase/firestore"
+import { collection, query, where, addDoc, updateDoc, doc } from "firebase/firestore"
 import { Property, Tenant } from "@/lib/types"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
@@ -17,13 +18,17 @@ import { Label } from "@/components/ui/label"
 import { errorEmitter } from "@/firebase/error-emitter"
 import { FirestorePermissionError } from "@/firebase/errors"
 import { useToast } from "@/hooks/use-toast"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Alert, AlertDescription, AlertTitle } from "@/alert"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 
 export default function PropertiesPage() {
   const { user, loading: authLoading } = useUser()
   const db = useFirestore()
   const { toast } = useToast()
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [selectedProperty, setSelectedProperty] = useState<Property | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const propertiesQuery = useMemoFirebase(() => {
@@ -42,17 +47,7 @@ export default function PropertiesPage() {
 
   const handleAddProperty = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    
-    if (!user) {
-      toast({
-        variant: "destructive",
-        title: "Authentication Required",
-        description: "Please sign in to add properties.",
-      })
-      return
-    }
-
-    if (!db) return
+    if (!user || !db) return
 
     setIsSubmitting(true)
     const formData = new FormData(e.currentTarget)
@@ -68,7 +63,7 @@ export default function PropertiesPage() {
 
     addDoc(collection(db, "properties"), propertyData)
       .then(() => {
-        setIsDialogOpen(false)
+        setIsAddDialogOpen(false)
         setIsSubmitting(false)
         toast({
           title: "Property Added",
@@ -80,6 +75,41 @@ export default function PropertiesPage() {
           path: "properties",
           operation: "create",
           requestResourceData: propertyData,
+        })
+        errorEmitter.emit("permission-error", permissionError)
+        setIsSubmitting(false)
+      })
+  }
+
+  const handleUpdateProperty = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    if (!user || !db || !selectedProperty) return
+
+    setIsSubmitting(true)
+    const formData = new FormData(e.currentTarget)
+    const name = formData.get("name") as string
+    const address = formData.get("address") as string
+
+    const updateData = {
+      propertyName: name,
+      address: address,
+    }
+
+    const propRef = doc(db, "properties", selectedProperty.id)
+    updateDoc(propRef, updateData)
+      .then(() => {
+        setIsEditDialogOpen(false)
+        setIsSubmitting(false)
+        toast({
+          title: "Property Updated",
+          description: "Changes saved successfully.",
+        })
+      })
+      .catch(async (error) => {
+        const permissionError = new FirestorePermissionError({
+          path: `properties/${selectedProperty.id}`,
+          operation: "update",
+          requestResourceData: updateData,
         })
         errorEmitter.emit("permission-error", permissionError)
         setIsSubmitting(false)
@@ -105,7 +135,7 @@ export default function PropertiesPage() {
             <p className="text-muted-foreground">Manage your real estate portfolio.</p>
           </div>
           
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
               <Button className="gap-2" disabled={!user}>
                 <Plus className="size-4" />
@@ -146,7 +176,7 @@ export default function PropertiesPage() {
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>Not Signed In</AlertTitle>
             <AlertDescription>
-              Please sign in using the user menu in the top right to manage your properties.
+              Please sign in to manage your properties.
             </AlertDescription>
           </Alert>
         ) }
@@ -164,7 +194,7 @@ export default function PropertiesPage() {
             <p className="text-muted-foreground mt-2 max-w-xs">
               Start building your portfolio by adding your first property.
             </p>
-            <Button className="mt-6" onClick={() => setIsDialogOpen(true)}>Add Property</Button>
+            <Button className="mt-6" onClick={() => setIsAddDialogOpen(true)}>Add Property</Button>
           </Card>
         ) : user && (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -189,9 +219,28 @@ export default function PropertiesPage() {
                       <p className="text-xs font-medium uppercase tracking-wider opacity-80">Portfolio Asset</p>
                       <h3 className="text-xl font-bold font-headline">{property.propertyName}</h3>
                     </div>
-                    <Button size="icon" variant="ghost" className="absolute top-2 right-2 text-white hover:bg-white/20">
-                      <MoreVertical className="size-5" />
-                    </Button>
+                    <div className="absolute top-2 right-2">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button size="icon" variant="ghost" className="text-white hover:bg-white/20">
+                            <MoreVertical className="size-5" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => {
+                            setSelectedProperty(property)
+                            setIsEditDialogOpen(true)
+                          }}>
+                            <Edit className="mr-2 size-4" /> Edit Details
+                          </DropdownMenuItem>
+                          <DropdownMenuItem asChild>
+                            <Link href={`/properties/${property.id}`}>
+                              <Eye className="mr-2 size-4" /> View Full Stats
+                            </Link>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </div>
                   <CardContent className="pt-6">
                     <div className="flex items-start gap-2 text-sm text-muted-foreground mb-4">
@@ -210,8 +259,20 @@ export default function PropertiesPage() {
                     </div>
                   </CardContent>
                   <CardFooter className="bg-muted/30 p-4 flex justify-between gap-2">
-                    <Button variant="outline" size="sm" className="w-full">View Details</Button>
-                    <Button variant="ghost" size="sm" className="w-full">Edit</Button>
+                    <Link href={`/properties/${property.id}`} className="w-full">
+                      <Button variant="outline" size="sm" className="w-full">View Details</Button>
+                    </Link>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="w-full"
+                      onClick={() => {
+                        setSelectedProperty(property)
+                        setIsEditDialogOpen(true)
+                      }}
+                    >
+                      Edit
+                    </Button>
                   </CardFooter>
                 </Card>
               )
@@ -219,6 +280,37 @@ export default function PropertiesPage() {
           </div>
         )}
       </div>
+
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent>
+          <form onSubmit={handleUpdateProperty}>
+            <DialogHeader>
+              <DialogTitle>Edit Property Details</DialogTitle>
+              <DialogDescription>
+                Update the name and address for this asset.
+              </DialogDescription>
+            </DialogHeader>
+            {selectedProperty && (
+              <div className="grid gap-4 py-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-name">Property Name</Label>
+                  <Input id="edit-name" name="name" defaultValue={selectedProperty.propertyName} required />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-address">Full Address</Label>
+                  <Input id="edit-address" name="address" defaultValue={selectedProperty.address} required />
+                </div>
+              </div>
+            )}
+            <DialogFooter>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Save Changes
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   )
 }
