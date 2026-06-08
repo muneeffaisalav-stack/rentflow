@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect } from 'react';
@@ -6,8 +5,8 @@ import { useUser, useFirestore } from '@/firebase';
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 
 /**
- * Component that ensures the user's Firestore profile is in sync with their Auth state.
- * Specifically handles auto-promotion of the designated admin email.
+ * Background component that ensures the user's Firestore profile is in sync 
+ * with their Auth state. Automatically promotes 'admin@rentflow.com' to super-admin.
  */
 export function ProfileSync() {
   const { user } = useUser();
@@ -25,24 +24,24 @@ export function ProfileSync() {
         const targetRole = isAdminEmail ? "super-admin" : "landlord";
 
         if (!userDoc.exists()) {
-          // Create missing profile
+          // Create the user profile if it doesn't exist
           await setDoc(userRef, {
             id: user.uid,
             name: user.displayName || "User",
             email: user.email,
             role: targetRole,
-            createdAt: new Date().toISOString()
+            createdAt: new Date().toISOString(),
           });
         } else {
-          // Update existing profile if email is admin but role isn't
+          // Force update to super-admin if the email matches but the role is outdated
           const currentData = userDoc.data();
           if (isAdminEmail && currentData.role !== "super-admin") {
             await updateDoc(userRef, { role: "super-admin" });
           }
         }
       } catch (error) {
-        // Silent fail as this is a background sync
-        console.warn("Profile sync background check failed:", error);
+        // Silently fail as this is a background maintenance task
+        console.warn("Profile sync error:", error);
       }
     }
     sync();

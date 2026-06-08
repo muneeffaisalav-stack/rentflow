@@ -1,105 +1,106 @@
+'use client';
 
-"use client"
-
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { useAuth, useFirestore } from "@/firebase"
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth, useFirestore } from '@/firebase';
 import { 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
   updateProfile,
   GoogleAuthProvider,
   signInWithPopup
-} from "firebase/auth"
-import { doc, setDoc, getDoc, updateDoc } from "firebase/firestore"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Building2, Loader2, AlertCircle } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+} from 'firebase/auth';
+import { doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Building2, Loader2, AlertCircle } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 export default function LoginPage() {
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const auth = useAuth()
-  const db = useFirestore()
-  const router = useRouter()
-  const { toast } = useToast()
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const auth = useAuth();
+  const db = useFirestore();
+  const router = useRouter();
+  const { toast } = useToast();
 
   const syncUserProfile = async (user: any, name: string) => {
-    if (!db || !user) return
+    if (!db || !user) return;
 
-    const userRef = doc(db, "users", user.uid)
-    const userDoc = await getDoc(userRef)
-    
-    // Check for admin email case-insensitively
-    const isAdminEmail = user.email?.toLowerCase() === "admin@rentflow.com"
-    const targetRole = isAdminEmail ? "super-admin" : "landlord"
+    try {
+      const userRef = doc(db, 'users', user.uid);
+      const userDoc = await getDoc(userRef);
+      
+      const isAdminEmail = user.email?.toLowerCase() === 'admin@rentflow.com';
+      const targetRole = isAdminEmail ? 'super-admin' : 'landlord';
 
-    if (!userDoc.exists()) {
-      await setDoc(userRef, {
-        id: user.uid,
-        name: name || user.displayName || "User",
-        email: user.email,
-        role: targetRole,
-        createdAt: new Date().toISOString()
-      })
-    } else {
-      const currentData = userDoc.data()
-      // Force update to super-admin if email matches but role is wrong
-      if (isAdminEmail && currentData.role !== "super-admin") {
-        await updateDoc(userRef, { role: "super-admin" })
+      if (!userDoc.exists()) {
+        await setDoc(userRef, {
+          id: user.uid,
+          name: name || user.displayName || 'User',
+          email: user.email,
+          role: targetRole,
+          createdAt: new Date().toISOString()
+        });
+      } else {
+        const currentData = userDoc.data();
+        if (isAdminEmail && currentData.role !== 'super-admin') {
+          await updateDoc(userRef, { role: 'super-admin' });
+        }
       }
+    } catch (err) {
+      console.error('Initial profile sync failed:', err);
     }
-  }
+  };
 
   const handleEmailAuth = async (e: React.FormEvent<HTMLFormElement>, type: 'login' | 'signup') => {
-    e.preventDefault()
-    setIsLoading(true)
-    setError(null)
+    e.preventDefault();
+    setIsLoading(true);
+    setError(null);
 
-    const formData = new FormData(e.currentTarget)
-    const email = (formData.get("email") as string).trim()
-    const password = formData.get("password") as string
-    const name = formData.get("name") as string
+    const formData = new FormData(e.currentTarget);
+    const email = (formData.get('email') as string).trim();
+    const password = formData.get('password') as string;
+    const name = formData.get('name') as string;
 
     try {
       if (type === 'signup') {
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password)
-        await updateProfile(userCredential.user, { displayName: name })
-        await syncUserProfile(userCredential.user, name)
-        toast({ title: "Account Created", description: "Welcome to RentFlow!" })
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        await updateProfile(userCredential.user, { displayName: name });
+        await syncUserProfile(userCredential.user, name);
+        toast({ title: 'Account Created', description: 'Welcome to RentFlow!' });
       } else {
-        const userCredential = await signInWithEmailAndPassword(auth, email, password)
-        await syncUserProfile(userCredential.user, userCredential.user.displayName || "")
-        toast({ title: "Signed In", description: "Welcome back!" })
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        await syncUserProfile(userCredential.user, userCredential.user.displayName || '');
+        toast({ title: 'Signed In', description: 'Welcome back!' });
       }
-      router.push("/dashboard")
+      router.push('/dashboard');
     } catch (err: any) {
-      setError(err.message || "Authentication failed. Please try again.")
+      setError(err.message || 'Authentication failed. Please try again.');
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const handleGoogleSignIn = async () => {
-    setIsLoading(true)
-    setError(null)
-    const provider = new GoogleAuthProvider()
+    setIsLoading(true);
+    setError(null);
+    const provider = new GoogleAuthProvider();
     try {
-      const result = await signInWithPopup(auth, provider)
-      await syncUserProfile(result.user, result.user.displayName || "")
-      toast({ title: "Signed In", description: "Welcome to RentFlow!" })
-      router.push("/dashboard")
+      const result = await signInWithPopup(auth, provider);
+      await syncUserProfile(result.user, result.user.displayName || '');
+      toast({ title: 'Signed In', description: 'Welcome to RentFlow!' });
+      router.push('/dashboard');
     } catch (err: any) {
-      setError(err.message || "Google Sign-In failed.")
+      setError(err.message || 'Google Sign-In failed.');
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-slate-50 px-4">
@@ -204,5 +205,5 @@ export default function LoginPage() {
         </Card>
       </div>
     </div>
-  )
+  );
 }
