@@ -78,6 +78,7 @@ export default function TenantsPage() {
       propertyId: formData.get("propertyId") as string,
       landlordId: user.uid,
       status: 'active',
+      createdAt: new Date().toISOString(),
     }
 
     addDoc(collection(db, "tenants"), tenantData)

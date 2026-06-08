@@ -74,6 +74,8 @@ export default function TenantDetailsPage({ params }: { params: Promise<{ tenant
   const totalPaid = paidInvoices.reduce((sum, i) => sum + i.amount, 0)
   const overdueCount = invoices.filter(i => i.status === 'overdue').length
 
+  const tenantSince = tenant.createdAt ? new Date(tenant.createdAt).toLocaleDateString() : 'Recently'
+
   return (
     <DashboardLayout>
       <div className="space-y-8">
@@ -87,7 +89,7 @@ export default function TenantDetailsPage({ params }: { params: Promise<{ tenant
             <h2 className="text-3xl font-headline font-bold tracking-tight">{tenant.name}</h2>
             <div className="flex items-center gap-2 mt-1">
               <Badge variant={tenant.status === 'active' ? 'default' : 'secondary'}>{tenant.status}</Badge>
-              <span className="text-muted-foreground text-sm">Tenant since {new Date(tenant.id).toLocaleDateString() === 'Invalid Date' ? 'Recently' : new Date(tenant.id).toLocaleDateString()}</span>
+              <span className="text-muted-foreground text-sm">Tenant since {tenantSince}</span>
             </div>
           </div>
         </div>

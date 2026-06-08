@@ -28,6 +28,7 @@ export interface Tenant {
   dueDate: number; // Day of the month
   upiId: string;
   status: 'active' | 'inactive';
+  createdAt?: string;
 }
 
 export interface Invoice {
