@@ -30,11 +30,13 @@ export default function LoginPage() {
   const { toast } = useToast()
 
   const syncUserProfile = async (user: any, name: string) => {
+    if (!db || !user) return
+
     const userRef = doc(db, "users", user.uid)
     const userDoc = await getDoc(userRef)
     
-    // Always check if this specific email should be a super-admin
-    const isAdminEmail = user.email === "admin@rentflow.com"
+    // Check for admin email case-insensitively
+    const isAdminEmail = user.email?.toLowerCase() === "admin@rentflow.com"
     const targetRole = isAdminEmail ? "super-admin" : "landlord"
 
     if (!userDoc.exists()) {
@@ -47,7 +49,7 @@ export default function LoginPage() {
       })
     } else {
       const currentData = userDoc.data()
-      // If the email is the admin email but role is wrong, update it automatically
+      // Force update to super-admin if email matches but role is wrong
       if (isAdminEmail && currentData.role !== "super-admin") {
         await updateDoc(userRef, { role: "super-admin" })
       }
@@ -60,7 +62,7 @@ export default function LoginPage() {
     setError(null)
 
     const formData = new FormData(e.currentTarget)
-    const email = formData.get("email") as string
+    const email = (formData.get("email") as string).trim()
     const password = formData.get("password") as string
     const name = formData.get("name") as string
 
@@ -106,8 +108,8 @@ export default function LoginPage() {
           <div className="size-12 bg-primary rounded-xl flex items-center justify-center text-primary-foreground shadow-lg">
             <Building2 className="size-8" />
           </div>
-          <h1 className="text-3xl font-headline font-bold tracking-tight">RentFlow</h1>
-          <p className="text-muted-foreground">Modern Property Management</p>
+          <h1 className="text-3xl font-headline font-bold tracking-tight text-primary">RentFlow</h1>
+          <p className="text-muted-foreground font-medium tracking-tight uppercase text-xs">Modern Property Management</p>
         </div>
 
         {error && (
@@ -118,10 +120,10 @@ export default function LoginPage() {
           </Alert>
         )}
 
-        <Card className="border-border/60 shadow-xl">
+        <Card className="border-border/60 shadow-xl overflow-hidden">
           <Tabs defaultValue="login" className="w-full">
-            <CardHeader className="pb-0">
-              <TabsList className="grid w-full grid-cols-2">
+            <CardHeader className="pb-0 bg-slate-50/50 border-b">
+              <TabsList className="grid w-full grid-cols-2 mb-4">
                 <TabsTrigger value="login">Login</TabsTrigger>
                 <TabsTrigger value="signup">Sign Up</TabsTrigger>
               </TabsList>
@@ -130,21 +132,21 @@ export default function LoginPage() {
             <TabsContent value="login">
               <form onSubmit={(e) => handleEmailAuth(e, 'login')}>
                 <CardHeader>
-                  <CardTitle>Welcome Back</CardTitle>
+                  <CardTitle className="font-headline">Welcome Back</CardTitle>
                   <CardDescription>Enter your credentials to access your dashboard.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="email">Email</Label>
-                    <Input id="email" name="email" type="email" placeholder="name@example.com" required />
+                    <Input id="email" name="email" type="email" placeholder="name@example.com" required className="bg-slate-50/50" />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="password">Password</Label>
-                    <Input id="password" name="password" type="password" required />
+                    <Input id="password" name="password" type="password" required className="bg-slate-50/50" />
                   </div>
                 </CardContent>
                 <CardFooter className="flex flex-col gap-4">
-                  <Button type="submit" className="w-full" disabled={isLoading}>
+                  <Button type="submit" className="w-full font-bold h-11" disabled={isLoading}>
                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Sign In
                   </Button>
@@ -155,25 +157,25 @@ export default function LoginPage() {
             <TabsContent value="signup">
               <form onSubmit={(e) => handleEmailAuth(e, 'signup')}>
                 <CardHeader>
-                  <CardTitle>Create Account</CardTitle>
+                  <CardTitle className="font-headline">Create Account</CardTitle>
                   <CardDescription>Start managing your properties efficiently today.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="signup-name">Full Name</Label>
-                    <Input id="signup-name" name="name" placeholder="John Doe" required />
+                    <Input id="signup-name" name="name" placeholder="John Doe" required className="bg-slate-50/50" />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="signup-email">Email</Label>
-                    <Input id="signup-email" name="email" type="email" placeholder="name@example.com" required />
+                    <Input id="signup-email" name="email" type="email" placeholder="name@example.com" required className="bg-slate-50/50" />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="signup-password">Password</Label>
-                    <Input id="signup-password" name="password" type="password" required />
+                    <Input id="signup-password" name="password" type="password" required className="bg-slate-50/50" />
                   </div>
                 </CardContent>
                 <CardFooter className="flex flex-col gap-4">
-                  <Button type="submit" className="w-full" disabled={isLoading}>
+                  <Button type="submit" className="w-full font-bold h-11" disabled={isLoading}>
                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Create Account
                   </Button>
@@ -182,21 +184,21 @@ export default function LoginPage() {
             </TabsContent>
           </Tabs>
 
-          <div className="relative px-6 pb-6">
+          <div className="relative px-6 pb-6 mt-4">
             <div className="absolute inset-0 flex items-center px-6">
               <span className="w-full border-t" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-card px-2 text-muted-foreground">Or continue with</span>
+              <span className="bg-card px-2 text-muted-foreground font-semibold">Or continue with</span>
             </div>
           </div>
 
           <CardFooter className="pt-0">
-            <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={isLoading}>
+            <Button variant="outline" className="w-full h-11 border-border/60 hover:bg-slate-50" onClick={handleGoogleSignIn} disabled={isLoading}>
               <svg className="mr-2 h-4 w-4" aria-hidden="true" focusable="false" data-prefix="fab" data-icon="google" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 488 512">
                 <path fill="currentColor" d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 123 24.5 166.3 64.9l-67.5 64.9C258.5 52.6 94.3 116.6 94.3 256c0 86.5 69.1 156.6 153.7 156.6 98.2 0 135-70.4 140.8-106.9H248v-85.3h236.1c2.3 12.7 3.9 24.9 3.9 41.4z"></path>
               </svg>
-              Google
+              Google Account
             </Button>
           </CardFooter>
         </Card>
