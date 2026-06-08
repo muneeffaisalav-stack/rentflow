@@ -2,7 +2,7 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { 
   LayoutDashboard, 
   Building2, 
@@ -25,6 +25,9 @@ import {
   SidebarMenuItem,
   SidebarSeparator,
 } from "@/components/ui/sidebar"
+import { useAuth } from "@/firebase"
+import { signOut } from "firebase/auth"
+import { useToast } from "@/hooks/use-toast"
 
 const menuItems = [
   { title: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
@@ -36,6 +39,26 @@ const menuItems = [
 
 export function SidebarNav() {
   const pathname = usePathname()
+  const auth = useAuth()
+  const router = useRouter()
+  const { toast } = useToast()
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth)
+      toast({
+        title: "Signed Out",
+        description: "Successfully logged out of your account.",
+      })
+      router.push("/login")
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to sign out.",
+      })
+    }
+  }
 
   return (
     <Sidebar className="border-r border-border">
@@ -52,10 +75,12 @@ export function SidebarNav() {
       </SidebarHeader>
       <SidebarContent className="px-2">
         <div className="px-4 py-2">
-           <Button className="w-full justify-start gap-2 shadow-sm" variant="default">
-             <Plus className="size-4" />
-             <span>Quick Invoice</span>
-           </Button>
+           <Link href="/invoices?action=new">
+             <Button className="w-full justify-start gap-2 shadow-sm" variant="default">
+               <Plus className="size-4" />
+               <span>Quick Invoice</span>
+             </Button>
+           </Link>
         </div>
         <SidebarMenu className="mt-4">
           {menuItems.map((item) => {
@@ -91,11 +116,9 @@ export function SidebarNav() {
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild tooltip="Logout">
-              <Link href="/" className="flex items-center gap-3 px-3 py-2 text-muted-foreground hover:text-destructive transition-colors">
-                <LogOut className="size-5" />
-                <span>Logout</span>
-              </Link>
+            <SidebarMenuButton onClick={handleLogout} tooltip="Logout" className="w-full justify-start text-muted-foreground hover:text-destructive transition-colors">
+              <LogOut className="size-5" />
+              <span>Logout</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

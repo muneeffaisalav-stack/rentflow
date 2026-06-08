@@ -1,16 +1,17 @@
 
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useSearchParams } from "next/navigation"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Calendar, Download, Receipt, Send, CheckCircle2, Loader2, Plus } from "lucide-react"
+import { Calendar, Download, Receipt, Send, CheckCircle2, Loader2, Plus, Search } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase"
-import { collection, query, where, updateDoc, doc, addDoc, serverTimestamp } from "firebase/firestore"
+import { collection, query, where, updateDoc, doc, addDoc, orderBy } from "firebase/firestore"
 import { Invoice, Tenant, Property } from "@/lib/types"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
@@ -23,8 +24,16 @@ export default function InvoicesPage() {
   const { toast } = useToast()
   const { user } = useUser()
   const db = useFirestore()
+  const searchParams = useSearchParams()
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [searchTerm, setSearchTerm] = useState("")
+
+  useEffect(() => {
+    if (searchParams.get("action") === "new") {
+      setIsDialogOpen(true)
+    }
+  }, [searchParams])
 
   // Fetch all necessary data
   const propertiesQuery = useMemoFirebase(() => {
@@ -40,9 +49,12 @@ export default function InvoicesPage() {
   const { data: tenants } = useCollection<Tenant>(tenantsQuery)
 
   const invoicesQuery = useMemoFirebase(() => {
-    if (!db || !user) return null
-    // Get invoices for all properties owned by this landlord
-    return query(collection(db, "invoices"), where("propertyId", "in", properties.length > 0 ? properties.map(p => p.id) : ["none"]))
+    if (!db || !user || properties.length === 0) return null
+    return query(
+      collection(db, "invoices"), 
+      where("propertyId", "in", properties.map(p => p.id)),
+      orderBy("createdAt", "desc")
+    )
   }, [db, user, properties])
   const { data: invoices, loading } = useCollection<Invoice>(invoicesQuery)
 
@@ -79,12 +91,15 @@ export default function InvoicesPage() {
     const tenantId = formData.get("tenantId") as string
     const tenant = tenants.find(t => t.id === tenantId)
     
-    if (!tenant) return
+    if (!tenant) {
+       setIsSubmitting(false)
+       return
+    }
 
     const invoiceData = {
       tenantId: tenantId,
       propertyId: tenant.propertyId,
-      month: formData.get("month") as string, // e.g., "2024-03"
+      month: formData.get("month") as string,
       amount: Number(formData.get("amount")),
       status: 'pending',
       createdAt: new Date().toISOString(),
@@ -107,6 +122,12 @@ export default function InvoicesPage() {
       })
   }
 
+  const filteredInvoices = invoices.filter(invoice => {
+    const tenant = tenants.find(t => t.id === invoice.tenantId)
+    return tenant?.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+           invoice.month.includes(searchTerm)
+  })
+
   const pendingCount = invoices.filter(i => i.status === 'pending').length
   const paidCount = invoices.filter(i => i.status === 'paid').length
   const overdueCount = invoices.filter(i => i.status === 'overdue').length
@@ -116,8 +137,8 @@ export default function InvoicesPage() {
       <div className="space-y-8">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-3xl font-headline font-bold tracking-tight">Invoices</h2>
-            <p className="text-muted-foreground">Monitor and manage rental payments.</p>
+            <h2 className="text-3xl font-headline font-bold tracking-tight">Billing & Invoices</h2>
+            <p className="text-muted-foreground">Monitor and manage rental payments across your portfolio.</p>
           </div>
           <div className="flex gap-2">
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -132,7 +153,7 @@ export default function InvoicesPage() {
                   <DialogHeader>
                     <DialogTitle>Create New Invoice</DialogTitle>
                     <DialogDescription>
-                      Generate a manual rent invoice for a tenant.
+                      Generate a manual rent invoice for a registered tenant.
                     </DialogDescription>
                   </DialogHeader>
                   <div className="grid gap-4 py-4">
@@ -182,54 +203,71 @@ export default function InvoicesPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Card className="bg-amber-50 border-amber-200">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card className="bg-amber-50 border-amber-200 shadow-none">
              <CardContent className="pt-6">
                <div className="flex items-center justify-between">
                  <div>
-                   <p className="text-sm font-medium text-amber-700">Pending Invoices</p>
-                   <p className="text-3xl font-bold text-amber-900">{pendingCount}</p>
+                   <p className="text-sm font-medium text-amber-700 uppercase tracking-tight">Pending Invoices</p>
+                   <p className="text-3xl font-bold text-amber-900 mt-1">{pendingCount}</p>
                  </div>
-                 <Calendar className="size-8 text-amber-300" />
+                 <div className="size-12 rounded-full bg-amber-100 flex items-center justify-center">
+                    <Calendar className="size-6 text-amber-600" />
+                 </div>
                </div>
              </CardContent>
           </Card>
-          <Card className="bg-emerald-50 border-emerald-200">
+          <Card className="bg-emerald-50 border-emerald-200 shadow-none">
              <CardContent className="pt-6">
                <div className="flex items-center justify-between">
                  <div>
-                   <p className="text-sm font-medium text-emerald-700">Paid this month</p>
-                   <p className="text-3xl font-bold text-emerald-900">{paidCount}</p>
+                   <p className="text-sm font-medium text-emerald-700 uppercase tracking-tight">Paid this month</p>
+                   <p className="text-3xl font-bold text-emerald-900 mt-1">{paidCount}</p>
                  </div>
-                 <CheckCircle2 className="size-8 text-emerald-300" />
+                 <div className="size-12 rounded-full bg-emerald-100 flex items-center justify-center">
+                    <CheckCircle2 className="size-6 text-emerald-600" />
+                 </div>
                </div>
              </CardContent>
           </Card>
-          <Card className="bg-rose-50 border-rose-200">
+          <Card className="bg-rose-50 border-rose-200 shadow-none">
              <CardContent className="pt-6">
                <div className="flex items-center justify-between">
                  <div>
-                   <p className="text-sm font-medium text-rose-700">Overdue Payments</p>
-                   <p className="text-3xl font-bold text-rose-900">{overdueCount}</p>
+                   <p className="text-sm font-medium text-rose-700 uppercase tracking-tight">Overdue Payments</p>
+                   <p className="text-3xl font-bold text-rose-900 mt-1">{overdueCount}</p>
                  </div>
-                 <Send className="size-8 text-rose-300" />
+                 <div className="size-12 rounded-full bg-rose-100 flex items-center justify-center">
+                    <Send className="size-6 text-rose-600" />
+                 </div>
                </div>
              </CardContent>
           </Card>
         </div>
 
         <Card>
-          <CardHeader>
-            <CardTitle className="font-headline">Recent Billing History</CardTitle>
+          <CardHeader className="pb-3">
+             <div className="flex items-center justify-between">
+                <CardTitle className="font-headline">Billing History</CardTitle>
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
+                  <Input 
+                    placeholder="Search by tenant..." 
+                    className="pl-9 w-[280px]"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+             </div>
           </CardHeader>
           <CardContent>
             {loading ? (
               <div className="flex justify-center p-12">
-                <Loader2 className="animate-spin text-primary" />
+                <Loader2 className="animate-spin text-primary size-8" />
               </div>
-            ) : invoices.length === 0 ? (
-              <div className="text-center p-12 text-muted-foreground">
-                No invoices generated yet.
+            ) : filteredInvoices.length === 0 ? (
+              <div className="text-center p-12 text-muted-foreground border-2 border-dashed rounded-lg">
+                No invoices found. {searchTerm ? "Try a different search term." : "Start by creating your first invoice."}
               </div>
             ) : (
               <Table>
@@ -244,7 +282,7 @@ export default function InvoicesPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {invoices.map((invoice) => {
+                  {filteredInvoices.map((invoice) => {
                     const tenant = tenants.find(t => t.id === invoice.tenantId)
                     const property = properties.find(p => p.id === invoice.propertyId)
                     return (
@@ -267,16 +305,17 @@ export default function InvoicesPage() {
                         <TableCell className="text-right">
                           {invoice.status !== 'paid' ? (
                             <Button 
-                              variant="link" 
-                              className="text-primary p-0 h-auto"
+                              variant="outline" 
+                              size="sm"
+                              className="text-primary hover:bg-primary/5"
                               onClick={() => markAsPaid(invoice.id!)}
                             >
                               Mark Paid
                             </Button>
                           ) : (
-                            <Button variant="link" className="text-muted-foreground p-0 h-auto opacity-50 pointer-events-none">
-                              Completed
-                            </Button>
+                            <span className="text-xs text-muted-foreground font-medium flex items-center justify-end gap-1">
+                              <CheckCircle2 className="size-3" /> Settled
+                            </span>
                           )}
                         </TableCell>
                       </TableRow>

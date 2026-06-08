@@ -1,3 +1,4 @@
+
 "use client"
 
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
@@ -5,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Building2, Users, Receipt, Clock, ArrowUpRight, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase"
-import { collection, query, where } from "firebase/firestore"
+import { collection, query, where, orderBy, limit } from "firebase/firestore"
 import { Property, Tenant, Invoice } from "@/lib/types"
 import Link from "next/link"
 
@@ -26,8 +27,12 @@ export default function DashboardPage() {
   const { data: tenants, loading: tLoading } = useCollection<Tenant>(tenantsQuery)
 
   const invoicesQuery = useMemoFirebase(() => {
-    if (!db || !user) return null
-    return query(collection(db, "invoices"), where("propertyId", "in", properties.length > 0 ? properties.map(p => p.id) : ["none"]))
+    if (!db || !user || properties.length === 0) return null
+    return query(
+      collection(db, "invoices"), 
+      where("propertyId", "in", properties.map(p => p.id)),
+      orderBy("createdAt", "desc")
+    )
   }, [db, user, properties])
   const { data: invoices, loading: iLoading } = useCollection<Invoice>(invoicesQuery)
 
@@ -59,7 +64,7 @@ export default function DashboardPage() {
     <DashboardLayout>
       <div className="space-y-8">
         <div>
-          <h2 className="text-3xl font-headline font-bold tracking-tight">Financial Overview</h2>
+          <h2 className="text-3xl font-headline font-bold tracking-tight">Portfolio Overview</h2>
           <p className="text-muted-foreground">Real-time performance metrics of your property portfolio.</p>
         </div>
 
@@ -75,34 +80,32 @@ export default function DashboardPage() {
               <CardContent>
                 <div className="text-2xl font-bold">{stat.value}</div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  <span className="text-emerald-500 font-medium inline-flex items-center">
-                    +4.3% <ArrowUpRight className="size-3 ml-0.5" />
-                  </span> from last month
+                  Active in current billing cycle
                 </p>
               </CardContent>
             </Card>
           ))}
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2">
-          <Card className="col-span-2">
+        <div className="grid gap-6 md:grid-cols-1">
+          <Card>
             <CardHeader>
-              <CardTitle className="font-headline">Recent Activity</CardTitle>
-              <CardDescription>Track the latest payment activities and management events.</CardDescription>
+              <CardTitle className="font-headline">Recent Billing Activity</CardTitle>
+              <CardDescription>The latest invoice statuses and payment records.</CardDescription>
             </CardHeader>
             <CardContent>
               {invoices.length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground">
-                  No recent invoice activity.
+                  No recent activity found. Start by adding a property and a tenant.
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {invoices.slice(0, 4).map((invoice) => {
+                  {invoices.slice(0, 6).map((invoice) => {
                     const tenant = tenants.find(t => t.id === invoice.tenantId)
                     return (
                       <div key={invoice.id} className="flex items-center justify-between group p-3 border rounded-lg hover:bg-muted/50 transition-colors">
                         <div className="flex items-center gap-3">
-                          <div className="size-10 rounded-full bg-muted flex items-center justify-center font-bold text-xs uppercase">
+                          <div className="size-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs uppercase">
                             {tenant?.name.charAt(0) || '?'}
                           </div>
                           <div>
