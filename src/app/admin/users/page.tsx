@@ -5,16 +5,17 @@ import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Loader2, Search, Mail, ShieldCheck, UserCheck, Plus, AlertCircle } from "lucide-react"
+import { Loader2, Search, Mail, ShieldCheck, UserCheck, Plus, AlertCircle, MoreVertical, Edit, Trash2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { useFirestore, useCollection, useMemoFirebase } from "@/firebase"
-import { collection, query, orderBy, doc, setDoc } from "firebase/firestore"
+import { collection, query, orderBy, doc, setDoc, deleteDoc, updateDoc } from "firebase/firestore"
 import { User } from "@/lib/types"
 import { useProfile } from "@/hooks/use-profile"
 import { redirect } from "next/navigation"
 import { useState } from "react"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
@@ -23,6 +24,7 @@ import { getAuth, createUserWithEmailAndPassword, signOut as authSignOut } from 
 import { firebaseConfig } from "@/firebase/config"
 import { errorEmitter } from "@/firebase/error-emitter"
 import { FirestorePermissionError } from "@/firebase/errors"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 
 export default function UserManagementPage() {
   const { isAdmin, profile, loading: authLoading } = useProfile()
@@ -30,8 +32,10 @@ export default function UserManagementPage() {
   const { toast } = useToast()
   
   const [searchTerm, setSearchTerm] = useState("")
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [selectedUser, setSelectedUser] = useState<User | null>(null)
 
   // Ensure we only query the users collection if the profile confirms admin role
   const canFetchUsers = isAdmin && profile?.role === 'super-admin'
@@ -94,7 +98,7 @@ export default function UserManagementPage() {
         title: "User Created",
         description: `${name} has been added as a ${role}.`,
       })
-      setIsDialogOpen(false)
+      setIsAddDialogOpen(false)
     } catch (error: any) {
       console.error("Error adding user:", error)
       
@@ -131,6 +135,54 @@ export default function UserManagementPage() {
     }
   }
 
+  const handleUpdateUser = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    if (!selectedUser || !db) return
+    setIsSubmitting(true)
+
+    const formData = new FormData(e.currentTarget)
+    const name = formData.get("name") as string
+    const role = formData.get("role") as 'landlord' | 'super-admin'
+
+    const userRef = doc(db, "users", selectedUser.id)
+    updateDoc(userRef, { name, role })
+      .then(() => {
+        toast({
+          title: "User Updated",
+          description: "Profile changes saved successfully.",
+        })
+        setIsEditDialogOpen(false)
+      })
+      .catch(async (error) => {
+        const permissionError = new FirestorePermissionError({
+          path: `users/${selectedUser.id}`,
+          operation: "update",
+          requestResourceData: { name, role },
+        })
+        errorEmitter.emit("permission-error", permissionError)
+      })
+      .finally(() => setIsSubmitting(false))
+  }
+
+  const handleDeleteUser = async (userId: string) => {
+    if (!db) return
+    
+    deleteDoc(doc(db, "users", userId))
+      .then(() => {
+        toast({
+          title: "User Removed",
+          description: "The user profile has been deleted.",
+        })
+      })
+      .catch(async (error) => {
+        const permissionError = new FirestorePermissionError({
+          path: `users/${userId}`,
+          operation: "delete",
+        })
+        errorEmitter.emit("permission-error", permissionError)
+      })
+  }
+
   const filteredUsers = users.filter(user => 
     user.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
     user.email.toLowerCase().includes(searchTerm.toLowerCase())
@@ -155,7 +207,7 @@ export default function UserManagementPage() {
               />
             </div>
             
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
               <DialogTrigger asChild>
                 <Button className="gap-2">
                   <Plus className="size-4" />
@@ -228,7 +280,7 @@ export default function UserManagementPage() {
                     <TableHead>User</TableHead>
                     <TableHead>Role</TableHead>
                     <TableHead>Joined</TableHead>
-                    <TableHead className="text-right">Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -259,7 +311,46 @@ export default function UserManagementPage() {
                         {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Badge variant="outline" className="text-emerald-600 bg-emerald-50">Active</Badge>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <MoreVertical className="size-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => {
+                              setSelectedUser(user);
+                              setIsEditDialogOpen(true);
+                            }}>
+                              <Edit className="mr-2 size-4" /> Edit Profile
+                            </DropdownMenuItem>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive">
+                                  <Trash2 className="mr-2 size-4" /> Remove User
+                                </DropdownMenuItem>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    This will permanently delete the profile for {user.name}. 
+                                    They will no longer be able to access their landlord dashboard.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction 
+                                    onClick={() => handleDeleteUser(user.id)}
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  >
+                                    Delete User
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -269,6 +360,45 @@ export default function UserManagementPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent>
+          {selectedUser && (
+            <form onSubmit={handleUpdateUser}>
+              <DialogHeader>
+                <DialogTitle>Edit User Profile</DialogTitle>
+                <DialogDescription>
+                  Modify roles and basic information for {selectedUser.email}.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-name">Display Name</Label>
+                  <Input id="edit-name" name="name" defaultValue={selectedUser.name} required />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-role">Platform Role</Label>
+                  <Select name="role" defaultValue={selectedUser.role} required>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="landlord">Landlord</SelectItem>
+                      <SelectItem value="super-admin">Super Admin</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Save Changes
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   )
 }

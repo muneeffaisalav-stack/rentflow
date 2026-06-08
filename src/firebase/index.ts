@@ -10,7 +10,7 @@ import { firebaseConfig } from './config';
  * Explicitly triggering redeployment to ensure the 'super-admin' role defined 
  * in backend.json for /users, /properties, /tenants, and /invoices is correctly 
  * processed by the rule generator to allow global listing.
- * Latest trigger: Correcting Invoice permission errors for administrative users.
+ * Latest trigger: Enabling update and delete actions for administrators in User Management.
  */
 export function initializeFirebase() {
   const firebaseApp = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
