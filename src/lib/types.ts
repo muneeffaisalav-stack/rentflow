@@ -8,6 +8,11 @@ export interface User {
   role: Role;
   createdAt: string;
   phone?: string;
+  upiId?: string;
+  notifications?: {
+    paymentReceived: boolean;
+    overdueAlerts: boolean;
+  };
 }
 
 export interface Property {

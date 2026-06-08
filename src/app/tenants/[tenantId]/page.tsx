@@ -17,17 +17,20 @@ import {
   CheckCircle2, 
   Clock, 
   AlertCircle,
-  MessageCircle 
+  MessageCircle,
+  Download
 } from "lucide-react"
 import Link from "next/link"
 import { useFirestore, useDoc, useCollection, useMemoFirebase, useUser } from "@/firebase"
 import { doc, collection, query, where } from "firebase/firestore"
 import { Tenant, Property, Invoice } from "@/lib/types"
+import { useToast } from "@/hooks/use-toast"
 
 export default function TenantDetailsPage({ params }: { params: Promise<{ tenantId: string }> }) {
   const { tenantId } = use(params)
   const { user } = useUser()
   const db = useFirestore()
+  const { toast } = useToast()
 
   const tenantRef = useMemoFirebase(() => doc(db, "tenants", tenantId), [db, tenantId])
   const { data: tenant, loading: tLoading } = useDoc<Tenant>(tenantRef)
@@ -54,6 +57,37 @@ export default function TenantDetailsPage({ params }: { params: Promise<{ tenant
     const message = encodeURIComponent(`Hi ${tenant.name}, reaching out regarding the property at ${property?.propertyName || 'your rental'}.`);
     window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
   };
+
+  const handleDownloadInvoice = (invoice: Invoice) => {
+    if (!tenant || !property) return;
+    
+    const content = `
+RENTFLOW PAYMENT RECORD
+-----------------------
+Invoice ID: ${invoice.id}
+Property: ${property.propertyName}
+Tenant: ${tenant.name}
+Billing Month: ${invoice.month}
+Amount: INR ${invoice.amount.toLocaleString()}
+Status: ${invoice.status.toUpperCase()}
+Payment Date: ${invoice.paymentDate ? new Date(invoice.paymentDate).toLocaleDateString() : 'N/A'}
+Generated On: ${new Date().toLocaleString()}
+
+Thank you for choosing RentFlow.
+    `;
+
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `RentFlow_Receipt_${invoice.month}_${tenant.name.replace(/\s+/g, '_')}.txt`);
+    link.click();
+    
+    toast({
+      title: "Receipt Downloaded",
+      description: "Payment record saved to your device."
+    });
+  }
 
   if (tLoading || pLoading || !user) {
     return (
@@ -223,7 +257,9 @@ export default function TenantDetailsPage({ params }: { params: Promise<{ tenant
                         {invoice.paymentDate ? new Date(invoice.paymentDate).toLocaleDateString() : '-'}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button variant="ghost" size="sm">Download PDF</Button>
+                        <Button variant="ghost" size="sm" className="gap-2" onClick={() => handleDownloadInvoice(invoice)}>
+                          <Download className="size-4" /> Download
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}

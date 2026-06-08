@@ -3,11 +3,11 @@
 
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Building2, Users, Receipt, Clock, ArrowUpRight, Loader2, MessageCircle, AlertCircle, CheckCircle2 } from "lucide-react"
+import { Building2, Users, Receipt, Clock, Loader2, MessageCircle, AlertCircle, CheckCircle2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase"
-import { collection, query, where, limit, orderBy } from "firebase/firestore"
-import { Property, Tenant, Invoice } from "@/lib/types"
+import { useFirestore, useUser, useCollection, useMemoFirebase, useDoc } from "@/firebase"
+import { collection, query, where, limit, doc } from "firebase/firestore"
+import { Property, Tenant, Invoice, User as UserProfile } from "@/lib/types"
 import Link from "next/link"
 import { useToast } from "@/hooks/use-toast"
 
@@ -15,6 +15,12 @@ export default function DashboardPage() {
   const { user } = useUser()
   const db = useFirestore()
   const { toast } = useToast()
+
+  const userDocRef = useMemoFirebase(() => {
+    if (!db || !user) return null
+    return doc(db, "users", user.uid)
+  }, [db, user])
+  const { data: profile } = useDoc<UserProfile>(userDocRef)
 
   const propertiesQuery = useMemoFirebase(() => {
     if (!db || !user) return null
@@ -30,7 +36,6 @@ export default function DashboardPage() {
 
   const invoicesQuery = useMemoFirebase(() => {
     if (!db || !user) return null
-    // Filter by landlordId is mandatory for security rules
     return query(
       collection(db, "invoices"), 
       where("landlordId", "==", user.uid),
@@ -43,7 +48,6 @@ export default function DashboardPage() {
   const totalPendingRent = pendingInvoices.reduce((sum, i) => sum + i.amount, 0)
   const totalCollectedRent = invoices.filter(i => i.status === 'paid').reduce((sum, i) => sum + i.amount, 0)
 
-  // Identify tenants who need reminders (Pending or Overdue)
   const needsReminder = pendingInvoices.map(invoice => {
     const tenant = tenants.find(t => t.id === invoice.tenantId)
     return { invoice, tenant }
@@ -58,7 +62,8 @@ export default function DashboardPage() {
 
   const handleWhatsAppReminder = (tenant: Tenant, invoice: Invoice) => {
     const phone = tenant.phone.replace(/\D/g, '');
-    const message = encodeURIComponent(`Hi ${tenant.name}, a reminder for your rent of ₹${invoice.amount} for ${invoice.month}. Please settle this via UPI (${tenant.upiId}) at your earliest convenience. Thank you!`);
+    const upiInfo = profile?.upiId ? ` via UPI (${profile.upiId})` : '';
+    const message = encodeURIComponent(`Hi ${tenant.name}, a reminder for your rent of ₹${invoice.amount} for ${invoice.month}. Please settle this${upiInfo} at your earliest convenience. Thank you!`);
     window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
   };
 
@@ -69,7 +74,7 @@ export default function DashboardPage() {
       <DashboardLayout>
         <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
           <Loader2 className="animate-spin size-10 text-primary" />
-          <p className="text-muted-foreground font-medium animate-pulse">Synchronizing Portfolio Data...</p>
+          <p className="text-muted-foreground font-medium">Synchronizing Portfolio Data...</p>
         </div>
       </DashboardLayout>
     )
