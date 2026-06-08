@@ -13,7 +13,8 @@ import {
   LogOut,
   Plus,
   ShieldCheck,
-  UserCog
+  UserCog,
+  Loader2
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -50,7 +51,7 @@ export function SidebarNav() {
   const auth = useAuth()
   const router = useRouter()
   const { toast } = useToast()
-  const { isAdmin } = useProfile()
+  const { isAdmin, loading } = useProfile()
 
   const handleLogout = async () => {
     try {
@@ -113,7 +114,12 @@ export function SidebarNav() {
           })}
         </SidebarMenu>
 
-        {isAdmin && (
+        {loading ? (
+          <div className="px-6 mt-8 flex items-center gap-2 text-xs text-muted-foreground">
+            <Loader2 className="size-3 animate-spin" />
+            <span>Checking access...</span>
+          </div>
+        ) : isAdmin && (
           <>
             <div className="px-6 mt-8 mb-2">
               <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Admin Controls</p>

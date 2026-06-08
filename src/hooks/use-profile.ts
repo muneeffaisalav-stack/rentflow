@@ -16,10 +16,13 @@ export function useProfile() {
 
   const { data: profile, loading: profileLoading } = useDoc<User>(userDocRef);
 
+  // We are "loading" if either the Auth state or the Firestore profile document is still being fetched.
+  const isLoading = userLoading || (!!user && profileLoading);
+
   return {
     profile,
     user,
-    loading: userLoading || profileLoading,
+    loading: isLoading,
     isAdmin: profile?.role === 'super-admin'
   };
 }
