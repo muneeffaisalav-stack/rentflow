@@ -9,7 +9,7 @@ import { firebaseConfig } from './config';
  * Note: A change to this file triggers a deployment of Security Rules.
  * Triggering redeployment to ensure explicit 'super-admin' overrides for all root collections 
  * (/users, /properties, /tenants, /invoices) are correctly processed to resolve permission errors.
- * Latest trigger: Adding email/password management capabilities for administrators.
+ * Latest trigger: Adding mandatory landlordId filters to detail page queries for invoices.
  */
 export function initializeFirebase() {
   const firebaseApp = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);

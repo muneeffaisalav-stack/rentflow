@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { Calendar, Download, Receipt, Send, CheckCircle2, Loader2, Plus, Search } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase"
-import { collection, query, where, updateDoc, doc, addDoc, orderBy } from "firebase/firestore"
+import { collection, query, where, updateDoc, doc, addDoc } from "firebase/firestore"
 import { Invoice, Tenant, Property } from "@/lib/types"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
@@ -50,10 +50,11 @@ export default function InvoicesPage() {
 
   const invoicesQuery = useMemoFirebase(() => {
     if (!db || !user) return null
+    // Mandatory landlordId filter required by Security Rules.
+    // Temporarily removing orderBy to avoid index requirement overhead during debugging.
     return query(
       collection(db, "invoices"), 
-      where("landlordId", "==", user.uid),
-      orderBy("createdAt", "desc")
+      where("landlordId", "==", user.uid)
     )
   }, [db, user])
   const { data: invoices, loading } = useCollection<Invoice>(invoicesQuery)
@@ -123,11 +124,14 @@ export default function InvoicesPage() {
       })
   }
 
-  const filteredInvoices = invoices.filter(invoice => {
-    const tenant = tenants.find(t => t.id === invoice.tenantId)
-    return tenant?.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-           invoice.month.includes(searchTerm)
-  })
+  // Client-side sort to avoid index requirement for now
+  const filteredInvoices = invoices
+    .filter(invoice => {
+      const tenant = tenants.find(t => t.id === invoice.tenantId)
+      return tenant?.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+             invoice.month.includes(searchTerm)
+    })
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 
   const pendingCount = invoices.filter(i => i.status === 'pending').length
   const paidCount = invoices.filter(i => i.status === 'paid').length

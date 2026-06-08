@@ -20,12 +20,13 @@ import {
   AlertCircle 
 } from "lucide-react"
 import Link from "next/link"
-import { useFirestore, useDoc, useCollection, useMemoFirebase } from "@/firebase"
-import { doc, collection, query, where, orderBy } from "firebase/firestore"
+import { useFirestore, useDoc, useCollection, useMemoFirebase, useUser } from "@/firebase"
+import { doc, collection, query, where } from "firebase/firestore"
 import { Tenant, Property, Invoice } from "@/lib/types"
 
 export default function TenantDetailsPage({ params }: { params: Promise<{ tenantId: string }> }) {
   const { tenantId } = use(params)
+  const { user } = useUser()
   const db = useFirestore()
 
   const tenantRef = useMemoFirebase(() => doc(db, "tenants", tenantId), [db, tenantId])
@@ -38,16 +39,17 @@ export default function TenantDetailsPage({ params }: { params: Promise<{ tenant
   const { data: property, loading: pLoading } = useDoc<Property>(propertyRef)
 
   const invoicesQuery = useMemoFirebase(() => {
-    if (!db || !tenantId) return null
+    if (!db || !tenantId || !user) return null
+    // Mandatory landlordId filter required by Security Rules
     return query(
       collection(db, "invoices"),
       where("tenantId", "==", tenantId),
-      orderBy("createdAt", "desc")
+      where("landlordId", "==", user.uid)
     )
-  }, [db, tenantId])
+  }, [db, tenantId, user])
   const { data: invoices, loading: iLoading } = useCollection<Invoice>(invoicesQuery)
 
-  if (tLoading || pLoading) {
+  if (tLoading || pLoading || !user) {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center h-96">
