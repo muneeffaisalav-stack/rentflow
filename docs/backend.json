@@ -52,13 +52,14 @@
         "id": { "type": "string" },
         "tenantId": { "type": "string" },
         "propertyId": { "type": "string" },
+        "landlordId": { "type": "string" },
         "month": { "type": "string" },
         "amount": { "type": "number" },
         "status": { "type": "string", "enum": ["pending", "paid", "overdue"] },
         "paymentDate": { "type": "string", "format": "date-time" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["tenantId", "propertyId", "month", "amount", "status"]
+      "required": ["tenantId", "propertyId", "landlordId", "month", "amount", "status"]
     }
   },
   "auth": {

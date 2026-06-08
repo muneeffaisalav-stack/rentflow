@@ -16,7 +16,7 @@ export default function AdminPage() {
 
   // Only attempt to create collection references if we are confirmed as an admin in the database
   // and the profile has been fully loaded and verified.
-  const canFetchAdminData = isAdmin && profile?.role === 'super-admin'
+  const canFetchAdminData = !authLoading && isAdmin && profile?.role === 'super-admin'
 
   const usersColl = useMemoFirebase(() => {
     if (!db || !canFetchAdminData) return null
@@ -43,7 +43,7 @@ export default function AdminPage() {
   const { data: tenants, loading: tLoading } = useCollection<Tenant>(tenantsColl)
   const { data: invoices, loading: iLoading } = useCollection<Invoice>(invoicesColl)
 
-  if (authLoading || (isAdmin && !profile)) {
+  if (authLoading) {
     return (
       <DashboardLayout>
         <div className="flex h-[60vh] items-center justify-center">

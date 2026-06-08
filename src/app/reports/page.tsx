@@ -40,14 +40,12 @@ export default function ReportsPage() {
   const { data: properties, loading: pLoading } = useCollection<Property>(propertiesQuery)
 
   const invoicesQuery = useMemoFirebase(() => {
-    // Prevent fetching if properties are still loading or if none exist for a landlord.
-    // This prevents permission errors caused by listing a collection without proper scope.
-    if (!db || !user || properties.length === 0) return null
+    if (!db || !user) return null
     return query(
       collection(db, "invoices"), 
-      where("propertyId", "in", properties.map(p => p.id))
+      where("landlordId", "==", user.uid)
     )
-  }, [db, user, properties])
+  }, [db, user])
   const { data: invoices, loading: iLoading } = useCollection<Invoice>(invoicesQuery)
 
   // Process data for charts

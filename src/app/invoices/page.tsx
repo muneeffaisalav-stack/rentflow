@@ -49,13 +49,13 @@ export default function InvoicesPage() {
   const { data: tenants } = useCollection<Tenant>(tenantsQuery)
 
   const invoicesQuery = useMemoFirebase(() => {
-    if (!db || !user || properties.length === 0) return null
+    if (!db || !user) return null
     return query(
       collection(db, "invoices"), 
-      where("propertyId", "in", properties.map(p => p.id)),
+      where("landlordId", "==", user.uid),
       orderBy("createdAt", "desc")
     )
-  }, [db, user, properties])
+  }, [db, user])
   const { data: invoices, loading } = useCollection<Invoice>(invoicesQuery)
 
   const markAsPaid = (invoiceId: string) => {
@@ -99,6 +99,7 @@ export default function InvoicesPage() {
     const invoiceData = {
       tenantId: tenantId,
       propertyId: tenant.propertyId,
+      landlordId: user.uid,
       month: formData.get("month") as string,
       amount: Number(formData.get("amount")),
       status: 'pending',

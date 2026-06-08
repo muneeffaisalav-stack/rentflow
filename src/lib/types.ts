@@ -35,6 +35,7 @@ export interface Invoice {
   id: string;
   tenantId: string;
   propertyId: string;
+  landlordId: string;
   month: string; // YYYY-MM
   amount: number;
   status: 'pending' | 'paid' | 'overdue';
