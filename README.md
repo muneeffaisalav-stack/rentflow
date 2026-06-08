@@ -1,49 +1,48 @@
 # RentFlow | Modern Property Management
 
-Streamline your property management with RentFlow. This application is built with Next.js, Firebase (Firestore & Auth), and Genkit (for AI-powered insights).
+Streamline your property management with RentFlow. This application is built with Next.js, Firebase (Firestore & Auth), and Genkit.
 
 ## Getting Started
 
-### Prerequisites
-- Node.js 18+
-- A Firebase Project
+### 1. Open the Terminal
+To run commands, you need to open the terminal in your editor:
+- **Shortcut**: Press `Ctrl` + ` ` ` (backtick).
+- **Menu**: Go to **Terminal > New Terminal**.
 
-### Installation
-1. Clone the repository (once pushed to GitHub).
-2. Install dependencies: `npm install`
-3. Set up your Firebase configuration in `src/firebase/config.ts`.
-4. Run the development server: `npm run dev`
-
-## GitHub Integration
-
-To push this project to your GitHub repository, run the following commands in your terminal:
+### 2. Push to GitHub
+If you have created a repository on GitHub, run these commands in the terminal:
 
 ```bash
-# 1. Initialize git
+# Initialize git
 git init
 
-# 2. Add all files
+# Add all files
 git add .
 
-# 3. Commit your changes
+# Commit changes
 git commit -m "Initial commit of RentFlow"
 
-# 4. Add your remote repository (Replace <YOUR_REPO_URL> with yours)
+# Add your remote repository (Replace <YOUR_REPO_URL> with yours)
 git remote add origin <YOUR_REPO_URL>
 
-# 5. Push to GitHub
+# Push to GitHub
 git branch -M main
 git push -u origin main
 ```
 
 ## Features
 - **Dashboard**: Real-time overview of portfolio performance.
-- **Properties**: Manage your real estate assets.
+- **Properties**: Manage your real estate assets with images.
 - **Tenants**: Directory with automated billing tracking.
 - **Invoices**: Generate, track, and export billing records.
 - **WhatsApp Integration**: One-click professional reminders for tenants.
+- **Automation**: Automatic invoice generation on tenant due dates.
 - **Admin Panel**: Global platform management for super-admins.
 - **Security**: Robust Firestore rules protecting landlord and tenant data.
 
-## Deployment
-This app is ready for deployment on **Firebase App Hosting**. Ensure your `apphosting.yaml` is configured correctly for your environment.
+## Tech Stack
+- **Framework**: Next.js 15 (App Router)
+- **Database**: Firebase Firestore
+- **Auth**: Firebase Authentication
+- **UI**: Tailwind CSS + ShadCN UI
+- **Icons**: Lucide React
