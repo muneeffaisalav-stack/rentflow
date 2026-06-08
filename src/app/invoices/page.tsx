@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect } from "react"
@@ -7,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Calendar, Download, Receipt, Send, CheckCircle2, Loader2, Plus, Search } from "lucide-react"
+import { Calendar, Download, CheckCircle2, Loader2, Plus, Search, MessageCircle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase"
 import { collection, query, where, updateDoc, doc, addDoc } from "firebase/firestore"
@@ -34,7 +35,6 @@ export default function InvoicesPage() {
     }
   }, [searchParams])
 
-  // Fetch all necessary data
   const propertiesQuery = useMemoFirebase(() => {
     if (!db || !user) return null
     return query(collection(db, "properties"), where("landlordId", "==", user.uid))
@@ -79,6 +79,14 @@ export default function InvoicesPage() {
       errorEmitter.emit('permission-error', permissionError)
     })
   }
+
+  const handleWhatsAppReminder = (invoice: Invoice) => {
+    const tenant = tenants.find(t => t.id === invoice.tenantId);
+    if (!tenant) return;
+    const phone = tenant.phone.replace(/\D/g, '');
+    const message = encodeURIComponent(`Hi ${tenant.name}, your rent for ${invoice.month} is ${invoice.status}. Amount: ₹${invoice.amount}. Please settle this at your earliest convenience. Thank you!`);
+    window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
+  };
 
   const handleAddInvoice = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -285,7 +293,7 @@ export default function InvoicesPage() {
                    <p className="text-3xl font-bold text-rose-900 mt-1">{overdueCount}</p>
                  </div>
                  <div className="size-12 rounded-full bg-rose-100 flex items-center justify-center">
-                    <Send className="size-6 text-rose-600" />
+                    <MessageCircle className="size-6 text-rose-600" />
                  </div>
                </div>
              </CardContent>
@@ -350,20 +358,34 @@ export default function InvoicesPage() {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
-                          {invoice.status !== 'paid' ? (
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              className="text-primary hover:bg-primary/5"
-                              onClick={() => markAsPaid(invoice.id!)}
-                            >
-                              Mark Paid
-                            </Button>
-                          ) : (
-                            <span className="text-xs text-muted-foreground font-medium flex items-center justify-end gap-1">
-                              <CheckCircle2 className="size-3" /> Settled
-                            </span>
-                          )}
+                          <div className="flex items-center justify-end gap-2">
+                            {invoice.status !== 'paid' && (
+                              <>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  className="text-primary hover:bg-primary/5"
+                                  onClick={() => markAsPaid(invoice.id!)}
+                                >
+                                  Mark Paid
+                                </Button>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  title="Send WhatsApp reminder"
+                                  onClick={() => handleWhatsAppReminder(invoice)}
+                                  className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                                >
+                                  <MessageCircle className="size-4" />
+                                </Button>
+                              </>
+                            )}
+                            {invoice.status === 'paid' && (
+                              <span className="text-xs text-muted-foreground font-medium flex items-center justify-end gap-1">
+                                <CheckCircle2 className="size-3" /> Settled
+                              </span>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     )

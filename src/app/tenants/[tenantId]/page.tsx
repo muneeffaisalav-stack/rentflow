@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { 
   Phone, 
-  Mail, 
   MapPin, 
   Calendar, 
   CreditCard, 
@@ -17,7 +16,8 @@ import {
   Loader2, 
   CheckCircle2, 
   Clock, 
-  AlertCircle 
+  AlertCircle,
+  MessageCircle 
 } from "lucide-react"
 import Link from "next/link"
 import { useFirestore, useDoc, useCollection, useMemoFirebase, useUser } from "@/firebase"
@@ -40,7 +40,6 @@ export default function TenantDetailsPage({ params }: { params: Promise<{ tenant
 
   const invoicesQuery = useMemoFirebase(() => {
     if (!db || !tenantId || !user) return null
-    // Mandatory landlordId filter required by Security Rules
     return query(
       collection(db, "invoices"),
       where("tenantId", "==", tenantId),
@@ -48,6 +47,13 @@ export default function TenantDetailsPage({ params }: { params: Promise<{ tenant
     )
   }, [db, tenantId, user])
   const { data: invoices, loading: iLoading } = useCollection<Invoice>(invoicesQuery)
+
+  const handleWhatsAppMessage = () => {
+    if (!tenant) return;
+    const phone = tenant.phone.replace(/\D/g, '');
+    const message = encodeURIComponent(`Hi ${tenant.name}, reaching out regarding the property at ${property?.propertyName || 'your rental'}.`);
+    window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
+  };
 
   if (tLoading || pLoading || !user) {
     return (
@@ -166,7 +172,10 @@ export default function TenantDetailsPage({ params }: { params: Promise<{ tenant
                   <p className="text-lg font-bold">{overdueCount}</p>
                 </div>
               </div>
-              <Button className="w-full" variant="outline">Message Tenant</Button>
+              <Button className="w-full gap-2" variant="outline" onClick={handleWhatsAppMessage}>
+                <MessageCircle className="size-4 text-green-600" />
+                Message Tenant
+              </Button>
             </CardContent>
           </Card>
         </div>

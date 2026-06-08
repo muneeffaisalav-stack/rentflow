@@ -22,7 +22,7 @@ import {
   Phone,
   Building,
   Loader2,
-  Mail,
+  MessageCircle,
   Eye
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
@@ -97,6 +97,13 @@ export default function TenantsPage() {
         setIsSubmitting(false)
       })
   }
+
+  const handleWhatsAppReminder = (tenant: Tenant) => {
+    const property = properties.find(p => p.id === tenant.propertyId);
+    const phone = tenant.phone.replace(/\D/g, '');
+    const message = encodeURIComponent(`Hi ${tenant.name}, this is a reminder for your rent at ${property?.propertyName || 'the property'}. Amount due: ₹${tenant.rentAmount}. Please pay by day ${tenant.dueDate} of the month. Thank you!`);
+    window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
+  };
 
   const filteredTenants = tenants.filter(t => 
     t.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -259,8 +266,13 @@ export default function TenantsPage() {
                                 <Eye className="size-4" />
                               </Button>
                             </Link>
-                            <Button variant="ghost" size="icon" title="Send reminder">
-                              <Mail className="size-4" />
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              title="Send WhatsApp reminder"
+                              onClick={() => handleWhatsAppReminder(tenant)}
+                            >
+                              <MessageCircle className="size-4 text-green-600" />
                             </Button>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
