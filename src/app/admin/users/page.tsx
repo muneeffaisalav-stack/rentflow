@@ -4,7 +4,7 @@ import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Loader2, Search, Mail, ShieldCheck, UserCheck, Plus, AlertCircle, MoreVertical, Edit, Trash2, Key, Eye, EyeOff } from "lucide-react"
+import { Loader2, Plus, Edit, Trash2, MoreVertical } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { useFirestore, useCollection, useMemoFirebase, useAuth } from "@/firebase"
@@ -14,12 +14,11 @@ import { useProfile } from "@/hooks/use-profile"
 import { redirect } from "next/navigation"
 import { useState } from "react"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { initializeApp, deleteApp } from "firebase/app"
-import { getAuth, createUserWithEmailAndPassword, sendPasswordResetEmail, signOut as authSignOut } from "firebase/auth"
+import { getAuth, createUserWithEmailAndPassword, signOut as authSignOut } from "firebase/auth"
 import { firebaseConfig } from "@/firebase/config"
 import { errorEmitter } from "@/firebase/error-emitter"
 import { FirestorePermissionError } from "@/firebase/errors"
@@ -28,7 +27,6 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 export default function UserManagementPage() {
   const { isAdmin, profile, loading: authLoading } = useProfile()
   const db = useFirestore()
-  const auth = useAuth()
   const { toast } = useToast()
   
   const [searchTerm, setSearchTerm] = useState("")
@@ -36,7 +34,6 @@ export default function UserManagementPage() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
-  const [showTempPassword, setShowTempPassword] = useState(false)
 
   const canFetchUsers = isAdmin && profile?.role === 'super-admin'
 
@@ -115,6 +112,8 @@ export default function UserManagementPage() {
     try {
       const userRef = doc(db, "users", selectedUser.id)
       await updateDoc(userRef, { name, role })
+      
+      // Close dialog immediately to prevent pointer-events lock issues
       setIsEditDialogOpen(false)
       toast({ title: "User Updated", description: "Profile saved successfully." })
     } catch (error: any) {
@@ -208,11 +207,11 @@ export default function UserManagementPage() {
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreVertical className="size-4" /></Button></DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => { setSelectedUser(user); setIsEditDialogOpen(true); }}>
+                          <DropdownMenuItem onSelect={() => { setSelectedUser(user); setIsEditDialogOpen(true); }}>
                             <Edit className="mr-2 size-4" /> Edit
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={() => handleDeleteUser(user.id)} className="text-destructive">
+                          <DropdownMenuItem onSelect={() => handleDeleteUser(user.id)} className="text-destructive">
                             <Trash2 className="mr-2 size-4" /> Delete
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -230,7 +229,7 @@ export default function UserManagementPage() {
         open={isEditDialogOpen} 
         onOpenChange={(open) => {
           setIsEditDialogOpen(open);
-          if (!open) setTimeout(() => setSelectedUser(null), 100);
+          if (!open) setSelectedUser(null);
         }}
       >
         <DialogContent>

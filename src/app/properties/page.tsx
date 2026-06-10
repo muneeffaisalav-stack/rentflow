@@ -96,6 +96,8 @@ export default function PropertiesPage() {
     try {
       const propRef = doc(db, "properties", selectedProperty.id)
       await updateDoc(propRef, updateData)
+      
+      // Close dialog immediately
       setIsEditDialogOpen(false)
       toast({
         title: "Property Updated",
@@ -224,7 +226,7 @@ export default function PropertiesPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => {
+                          <DropdownMenuItem onSelect={() => {
                             setSelectedProperty(property)
                             setIsEditDialogOpen(true)
                           }}>
@@ -282,10 +284,7 @@ export default function PropertiesPage() {
         open={isEditDialogOpen} 
         onOpenChange={(open) => {
           setIsEditDialogOpen(open);
-          if (!open) {
-            // Wait for Dialog exit animation to complete before clearing state
-            setTimeout(() => setSelectedProperty(null), 100);
-          }
+          if (!open) setSelectedProperty(null);
         }}
       >
         <DialogContent>

@@ -39,11 +39,10 @@ import {
   AlertDialogAction, 
   AlertDialogCancel, 
   AlertDialogContent, 
-  AlertDialogDescription, 
-  AlertDialogFooter, 
   AlertDialogHeader, 
   AlertDialogTitle, 
-  AlertDialogTrigger 
+  AlertDialogTrigger,
+  AlertDialogFooter
 } from "@/components/ui/alert-dialog"
 import { useToast } from "@/hooks/use-toast"
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase"
@@ -130,6 +129,8 @@ export default function TenantsPage() {
     try {
       const tenantRef = doc(db, "tenants", selectedTenant.id)
       await updateDoc(tenantRef, updateData)
+      
+      // Critical: Close dialog first, then reset state
       setIsEditDialogOpen(false)
       toast({ title: "Tenant Updated", description: "Record updated successfully." })
     } catch (error: any) {
@@ -346,7 +347,7 @@ export default function TenantsPage() {
                                 <DropdownMenuItem asChild>
                                   <Link href={`/tenants/${tenant.id}`}>View Profile</Link>
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => {
+                                <DropdownMenuItem onSelect={() => {
                                   setSelectedTenant(tenant);
                                   setIsEditDialogOpen(true);
                                 }}>
@@ -396,9 +397,8 @@ export default function TenantsPage() {
         onOpenChange={(open) => {
           setIsEditDialogOpen(open);
           if (!open) {
-            // Delay selection cleanup to ensure Dialog animation completes fully
-            // preventing Radix pointer-events lock issues.
-            setTimeout(() => setSelectedTenant(null), 100);
+            // Clean up focus and state after dialog is fully closed
+            setSelectedTenant(null);
           }
         }}
       >
