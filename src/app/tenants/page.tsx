@@ -47,6 +47,7 @@ export default function TenantsPage() {
   const { toast } = useToast()
   const { user } = useUser()
   const db = useFirestore()
+  
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null)
@@ -117,9 +118,14 @@ export default function TenantsPage() {
     try {
       const tenantRef = doc(db, "tenants", selectedTenant.id)
       await updateDoc(tenantRef, updateData)
+      
+      // Close first, then clear selection to avoid Radix cleanup issues
       setIsEditDialogOpen(false)
-      setSelectedTenant(null)
-      toast({ title: "Tenant Updated", description: "Record updated successfully." })
+      
+      toast({ 
+        title: "Tenant Updated", 
+        description: "Record updated successfully." 
+      })
     } catch (error: any) {
       const permissionError = new FirestorePermissionError({
         path: `tenants/${selectedTenant.id}`,
@@ -338,10 +344,16 @@ export default function TenantsPage() {
         </Card>
       </div>
 
-      <Dialog open={isEditDialogOpen} onOpenChange={(open) => {
-        setIsEditDialogOpen(open);
-        if (!open) setSelectedTenant(null);
-      }}>
+      <Dialog 
+        open={isEditDialogOpen} 
+        onOpenChange={(open) => {
+          setIsEditDialogOpen(open);
+          // Only clear after the dialog closes to prevent pointer-lock issues
+          if (!open) {
+            setTimeout(() => setSelectedTenant(null), 150);
+          }
+        }}
+      >
         <DialogContent>
           <form onSubmit={handleUpdateTenant}>
             <DialogHeader>

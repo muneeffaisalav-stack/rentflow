@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState } from "react"
@@ -97,8 +96,10 @@ export default function PropertiesPage() {
     try {
       const propRef = doc(db, "properties", selectedProperty.id)
       await updateDoc(propRef, updateData)
+      
+      // Close dialog first
       setIsEditDialogOpen(false)
-      setSelectedProperty(null)
+      
       toast({
         title: "Property Updated",
         description: "Changes saved successfully.",
@@ -280,10 +281,15 @@ export default function PropertiesPage() {
         )}
       </div>
 
-      <Dialog open={isEditDialogOpen} onOpenChange={(open) => {
-        setIsEditDialogOpen(open);
-        if (!open) setSelectedProperty(null);
-      }}>
+      <Dialog 
+        open={isEditDialogOpen} 
+        onOpenChange={(open) => {
+          setIsEditDialogOpen(open);
+          if (!open) {
+            setTimeout(() => setSelectedProperty(null), 150);
+          }
+        }}
+      >
         <DialogContent>
           <form onSubmit={handleUpdateProperty}>
             <DialogHeader>
