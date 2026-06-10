@@ -84,21 +84,20 @@ export default function TenantsPage() {
       createdAt: new Date().toISOString(),
     }
 
-    addDoc(collection(db, "tenants"), tenantData)
-      .then(() => {
-        setIsAddDialogOpen(false)
-        setIsSubmitting(false)
-        toast({ title: "Tenant Added", description: `${tenantData.name} has been successfully registered.` })
+    try {
+      await addDoc(collection(db, "tenants"), tenantData)
+      setIsAddDialogOpen(false)
+      toast({ title: "Tenant Added", description: `${tenantData.name} has been successfully registered.` })
+    } catch (error: any) {
+      const permissionError = new FirestorePermissionError({
+        path: "tenants",
+        operation: "create",
+        requestResourceData: tenantData,
       })
-      .catch(async () => {
-        const permissionError = new FirestorePermissionError({
-          path: "tenants",
-          operation: "create",
-          requestResourceData: tenantData,
-        })
-        errorEmitter.emit("permission-error", permissionError)
-        setIsSubmitting(false)
-      })
+      errorEmitter.emit("permission-error", permissionError)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const handleUpdateTenant = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -116,22 +115,22 @@ export default function TenantsPage() {
       propertyId: formData.get("propertyId") as string,
     }
 
-    const tenantRef = doc(db, "tenants", selectedTenant.id)
-    updateDoc(tenantRef, updateData)
-      .then(() => {
-        setIsEditDialogOpen(false)
-        setIsSubmitting(false)
-        toast({ title: "Tenant Updated", description: "Record updated successfully." })
+    try {
+      const tenantRef = doc(db, "tenants", selectedTenant.id)
+      await updateDoc(tenantRef, updateData)
+      setIsEditDialogOpen(false)
+      setSelectedTenant(null)
+      toast({ title: "Tenant Updated", description: "Record updated successfully." })
+    } catch (error: any) {
+      const permissionError = new FirestorePermissionError({
+        path: `tenants/${selectedTenant.id}`,
+        operation: "update",
+        requestResourceData: updateData,
       })
-      .catch(async () => {
-        const permissionError = new FirestorePermissionError({
-          path: `tenants/${selectedTenant.id}`,
-          operation: "update",
-          requestResourceData: updateData,
-        })
-        errorEmitter.emit("permission-error", permissionError)
-        setIsSubmitting(false)
-      })
+      errorEmitter.emit("permission-error", permissionError)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const handleWhatsAppReminder = (tenant: Tenant) => {
@@ -326,7 +325,6 @@ export default function TenantsPage() {
                                 }}>
                                   <Edit className="size-4 mr-2" /> Edit Record
                                 </DropdownMenuItem>
-                                <DropdownMenuItem className="text-destructive">Archive Tenant</DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>
@@ -341,7 +339,10 @@ export default function TenantsPage() {
         </Card>
       </div>
 
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+      <Dialog open={isEditDialogOpen} onOpenChange={(open) => {
+        setIsEditDialogOpen(open);
+        if (!open) setSelectedTenant(null);
+      }}>
         <DialogContent>
           <form onSubmit={handleUpdateTenant}>
             <DialogHeader>
@@ -400,6 +401,6 @@ export default function TenantsPage() {
           </form>
         </DialogContent>
       </Dialog>
-    </DashboardLayout>
+    </div>
   )
 }

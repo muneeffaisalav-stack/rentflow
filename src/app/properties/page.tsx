@@ -61,24 +61,23 @@ export default function PropertiesPage() {
       createdAt: new Date().toISOString(),
     }
 
-    addDoc(collection(db, "properties"), propertyData)
-      .then(() => {
-        setIsAddDialogOpen(false)
-        setIsSubmitting(false)
-        toast({
-          title: "Property Added",
-          description: `${name} has been added to your portfolio.`,
-        })
+    try {
+      await addDoc(collection(db, "properties"), propertyData)
+      setIsAddDialogOpen(false)
+      toast({
+        title: "Property Added",
+        description: `${name} has been added to your portfolio.`,
       })
-      .catch(async (error) => {
-        const permissionError = new FirestorePermissionError({
-          path: "properties",
-          operation: "create",
-          requestResourceData: propertyData,
-        })
-        errorEmitter.emit("permission-error", permissionError)
-        setIsSubmitting(false)
+    } catch (error: any) {
+      const permissionError = new FirestorePermissionError({
+        path: "properties",
+        operation: "create",
+        requestResourceData: propertyData,
       })
+      errorEmitter.emit("permission-error", permissionError)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const handleUpdateProperty = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -95,25 +94,25 @@ export default function PropertiesPage() {
       address: address,
     }
 
-    const propRef = doc(db, "properties", selectedProperty.id)
-    updateDoc(propRef, updateData)
-      .then(() => {
-        setIsEditDialogOpen(false)
-        setIsSubmitting(false)
-        toast({
-          title: "Property Updated",
-          description: "Changes saved successfully.",
-        })
+    try {
+      const propRef = doc(db, "properties", selectedProperty.id)
+      await updateDoc(propRef, updateData)
+      setIsEditDialogOpen(false)
+      setSelectedProperty(null)
+      toast({
+        title: "Property Updated",
+        description: "Changes saved successfully.",
       })
-      .catch(async (error) => {
-        const permissionError = new FirestorePermissionError({
-          path: `properties/${selectedProperty.id}`,
-          operation: "update",
-          requestResourceData: updateData,
-        })
-        errorEmitter.emit("permission-error", permissionError)
-        setIsSubmitting(false)
+    } catch (error: any) {
+      const permissionError = new FirestorePermissionError({
+        path: `properties/${selectedProperty.id}`,
+        operation: "update",
+        requestResourceData: updateData,
       })
+      errorEmitter.emit("permission-error", permissionError)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   if (authLoading) {
@@ -281,7 +280,10 @@ export default function PropertiesPage() {
         )}
       </div>
 
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+      <Dialog open={isEditDialogOpen} onOpenChange={(open) => {
+        setIsEditDialogOpen(open);
+        if (!open) setSelectedProperty(null);
+      }}>
         <DialogContent>
           <form onSubmit={handleUpdateProperty}>
             <DialogHeader>
