@@ -131,7 +131,7 @@ export default function TenantsPage() {
       const tenantRef = doc(db, "tenants", selectedTenant.id)
       await updateDoc(tenantRef, updateData)
       
-      // Close the dialog FIRST to avoid UI lockup
+      // Close dialog first to let animation finish naturally
       setIsEditDialogOpen(false)
       toast({ title: "Tenant Updated", description: "Record updated successfully." })
     } catch (error: any) {
@@ -397,9 +397,11 @@ export default function TenantsPage() {
         open={isEditDialogOpen} 
         onOpenChange={(open) => {
           setIsEditDialogOpen(open);
+          // Only clear the selected object after the dialog animation has finished
           if (!open) {
-            // Clean up focus and state after dialog is fully closed
-            setTimeout(() => setSelectedTenant(null), 100);
+            setTimeout(() => {
+              setSelectedTenant(null);
+            }, 300);
           }
         }}
       >
