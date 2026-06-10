@@ -23,7 +23,8 @@ import {
   Building,
   Loader2,
   MessageCircle,
-  Eye
+  Eye,
+  Edit
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -35,7 +36,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useToast } from "@/hooks/use-toast"
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase"
-import { collection, query, where, addDoc } from "firebase/firestore"
+import { collection, query, where, addDoc, updateDoc, doc } from "firebase/firestore"
 import { Tenant, Property } from "@/lib/types"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
@@ -47,7 +48,9 @@ export default function TenantsPage() {
   const { toast } = useToast()
   const { user } = useUser()
   const db = useFirestore()
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
   
@@ -83,7 +86,7 @@ export default function TenantsPage() {
 
     addDoc(collection(db, "tenants"), tenantData)
       .then(() => {
-        setIsDialogOpen(false)
+        setIsAddDialogOpen(false)
         setIsSubmitting(false)
         toast({ title: "Tenant Added", description: `${tenantData.name} has been successfully registered.` })
       })
@@ -92,6 +95,39 @@ export default function TenantsPage() {
           path: "tenants",
           operation: "create",
           requestResourceData: tenantData,
+        })
+        errorEmitter.emit("permission-error", permissionError)
+        setIsSubmitting(false)
+      })
+  }
+
+  const handleUpdateTenant = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    if (!user || !db || !selectedTenant) return
+
+    setIsSubmitting(true)
+    const formData = new FormData(e.currentTarget)
+    const updateData = {
+      name: formData.get("name") as string,
+      phone: formData.get("phone") as string,
+      rentAmount: Number(formData.get("rent")),
+      dueDate: Number(formData.get("dueDate")),
+      upiId: formData.get("upi") as string,
+      propertyId: formData.get("propertyId") as string,
+    }
+
+    const tenantRef = doc(db, "tenants", selectedTenant.id)
+    updateDoc(tenantRef, updateData)
+      .then(() => {
+        setIsEditDialogOpen(false)
+        setIsSubmitting(false)
+        toast({ title: "Tenant Updated", description: "Record updated successfully." })
+      })
+      .catch(async () => {
+        const permissionError = new FirestorePermissionError({
+          path: `tenants/${selectedTenant.id}`,
+          operation: "update",
+          requestResourceData: updateData,
         })
         errorEmitter.emit("permission-error", permissionError)
         setIsSubmitting(false)
@@ -119,7 +155,7 @@ export default function TenantsPage() {
             <p className="text-muted-foreground">Manage tenant records and communication.</p>
           </div>
           
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
               <Button className="gap-2 self-start md:self-auto">
                 <Plus className="size-4" />
@@ -284,7 +320,12 @@ export default function TenantsPage() {
                                 <DropdownMenuItem asChild>
                                   <Link href={`/tenants/${tenant.id}`}>View Profile</Link>
                                 </DropdownMenuItem>
-                                <DropdownMenuItem>Edit Record</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => {
+                                  setSelectedTenant(tenant);
+                                  setIsEditDialogOpen(true);
+                                }}>
+                                  <Edit className="size-4 mr-2" /> Edit Record
+                                </DropdownMenuItem>
                                 <DropdownMenuItem className="text-destructive">Archive Tenant</DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
@@ -299,6 +340,66 @@ export default function TenantsPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent>
+          <form onSubmit={handleUpdateTenant}>
+            <DialogHeader>
+              <DialogTitle>Edit Tenant Record</DialogTitle>
+              <DialogDescription>
+                Update tenant information and rental agreement details.
+              </DialogDescription>
+            </DialogHeader>
+            {selectedTenant && (
+              <div className="grid gap-4 py-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="propertyId">Property</Label>
+                  <Select name="propertyId" defaultValue={selectedTenant.propertyId} required>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a property" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {properties.map(p => (
+                        <SelectItem key={p.id} value={p.id!}>{p.propertyName}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="name">Tenant Name</Label>
+                  <Input id="name" name="name" defaultValue={selectedTenant.name} required />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="phone">Phone Number</Label>
+                    <Input id="phone" name="phone" defaultValue={selectedTenant.phone} required />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="rent">Monthly Rent (₹)</Label>
+                    <Input id="rent" name="rent" type="number" defaultValue={selectedTenant.rentAmount} required />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="dueDate">Due Date (Day of Month)</Label>
+                    <Input id="dueDate" name="dueDate" type="number" min="1" max="31" defaultValue={selectedTenant.dueDate} required />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="upi">UPI ID</Label>
+                    <Input id="upi" name="upi" defaultValue={selectedTenant.upiId} required />
+                  </div>
+                </div>
+              </div>
+            )}
+            <DialogFooter>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Save Changes
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   )
 }
