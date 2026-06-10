@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState } from "react"
@@ -17,7 +16,6 @@ import { Button } from "@/components/ui/button"
 import { 
   Plus, 
   Search, 
-  Filter, 
   MoreHorizontal, 
   Phone,
   Building,
@@ -133,7 +131,6 @@ export default function TenantsPage() {
       const tenantRef = doc(db, "tenants", selectedTenant.id)
       await updateDoc(tenantRef, updateData)
       setIsEditDialogOpen(false)
-      setTimeout(() => setSelectedTenant(null), 150);
       toast({ title: "Tenant Updated", description: "Record updated successfully." })
     } catch (error: any) {
       const permissionError = new FirestorePermissionError({
@@ -399,7 +396,9 @@ export default function TenantsPage() {
         onOpenChange={(open) => {
           setIsEditDialogOpen(open);
           if (!open) {
-            setTimeout(() => setSelectedTenant(null), 150);
+            // Delay selection cleanup to ensure Dialog animation completes fully
+            // preventing Radix pointer-events lock issues.
+            setTimeout(() => setSelectedTenant(null), 100);
           }
         }}
       >

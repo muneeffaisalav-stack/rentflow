@@ -96,10 +96,7 @@ export default function PropertiesPage() {
     try {
       const propRef = doc(db, "properties", selectedProperty.id)
       await updateDoc(propRef, updateData)
-      
-      // Close dialog first
       setIsEditDialogOpen(false)
-      
       toast({
         title: "Property Updated",
         description: "Changes saved successfully.",
@@ -286,7 +283,8 @@ export default function PropertiesPage() {
         onOpenChange={(open) => {
           setIsEditDialogOpen(open);
           if (!open) {
-            setTimeout(() => setSelectedProperty(null), 150);
+            // Wait for Dialog exit animation to complete before clearing state
+            setTimeout(() => setSelectedProperty(null), 100);
           }
         }}
       >

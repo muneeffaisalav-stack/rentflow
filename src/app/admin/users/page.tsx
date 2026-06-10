@@ -38,7 +38,6 @@ export default function UserManagementPage() {
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [showTempPassword, setShowTempPassword] = useState(false)
 
-  // Ensure we only query the users collection if the profile confirms admin role
   const canFetchUsers = isAdmin && profile?.role === 'super-admin'
 
   const usersQuery = useMemoFirebase(() => {
@@ -91,47 +90,14 @@ export default function UserManagementPage() {
       }
 
       await setDoc(doc(db, "users", newUid), userData)
-
       await authSignOut(secondaryAuth)
       await deleteApp(secondaryApp)
 
-      toast({
-        title: "User Created",
-        description: `${name} has been added as a ${role}.`,
-      })
+      toast({ title: "User Created", description: `${name} has been added.` })
       setIsAddDialogOpen(false)
-      setShowTempPassword(false)
     } catch (error: any) {
-      console.error("Error adding user:", error)
-      
-      let errorMessage = error.message || "Failed to create user account."
-      if (error.code === 'auth/email-already-in-use') {
-        errorMessage = "This email is already registered."
-      } else if (error.code === 'auth/weak-password') {
-        errorMessage = "Password should be at least 6 characters."
-      }
-
-      toast({
-        variant: "destructive",
-        title: "Creation Failed",
-        description: errorMessage,
-      })
-
-      if (error.code === 'permission-denied') {
-        const permissionError = new FirestorePermissionError({
-          path: "users",
-          operation: "create",
-        })
-        errorEmitter.emit('permission-error', permissionError)
-      }
-
-      if (secondaryApp) {
-        try {
-          await deleteApp(secondaryApp)
-        } catch (cleanupError) {
-          console.error("Cleanup error:", cleanupError)
-        }
-      }
+      toast({ variant: "destructive", title: "Error", description: error.message })
+      if (secondaryApp) await deleteApp(secondaryApp)
     } finally {
       setIsSubmitting(false)
     }
@@ -144,62 +110,31 @@ export default function UserManagementPage() {
 
     const formData = new FormData(e.currentTarget)
     const name = formData.get("name") as string
-    const email = formData.get("email") as string
     const role = formData.get("role") as 'landlord' | 'super-admin'
 
-    const userRef = doc(db, "users", selectedUser.id)
-    updateDoc(userRef, { name, email, role })
-      .then(() => {
-        toast({
-          title: "User Updated",
-          description: "Profile changes saved successfully in Firestore.",
-        })
-        setIsEditDialogOpen(false)
-      })
-      .catch(async (error) => {
-        const permissionError = new FirestorePermissionError({
-          path: `users/${selectedUser.id}`,
-          operation: "update",
-          requestResourceData: { name, role, email },
-        })
-        errorEmitter.emit("permission-error", permissionError)
-      })
-      .finally(() => setIsSubmitting(false))
-  }
-
-  const handlePasswordReset = async (email: string) => {
     try {
-      await sendPasswordResetEmail(auth, email)
-      toast({
-        title: "Reset Link Sent",
-        description: `A password reset instructions have been sent to ${email}.`,
-      })
+      const userRef = doc(db, "users", selectedUser.id)
+      await updateDoc(userRef, { name, role })
+      setIsEditDialogOpen(false)
+      toast({ title: "User Updated", description: "Profile saved successfully." })
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Failed to Reset",
-        description: error.message || "Could not initiate password reset.",
-      })
+      errorEmitter.emit("permission-error", new FirestorePermissionError({
+        path: `users/${selectedUser.id}`,
+        operation: "update",
+      }))
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
   const handleDeleteUser = async (userId: string) => {
     if (!db) return
-    
     deleteDoc(doc(db, "users", userId))
-      .then(() => {
-        toast({
-          title: "User Removed",
-          description: "The user profile has been deleted.",
-        })
-      })
-      .catch(async (error) => {
-        const permissionError = new FirestorePermissionError({
-          path: `users/${userId}`,
-          operation: "delete",
-        })
-        errorEmitter.emit("permission-error", permissionError)
-      })
+      .then(() => toast({ title: "User Removed", description: "Profile deleted." }))
+      .catch(() => errorEmitter.emit("permission-error", new FirestorePermissionError({
+        path: `users/${userId}`,
+        operation: "delete",
+      })))
   }
 
   const filteredUsers = users.filter(user => 
@@ -213,88 +148,38 @@ export default function UserManagementPage() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h2 className="text-3xl font-headline font-bold tracking-tight">User Management</h2>
-            <p className="text-muted-foreground">Monitor and manage roles for platform participants.</p>
+            <p className="text-muted-foreground">Monitor platform roles.</p>
           </div>
           <div className="flex items-center gap-3">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
-              <Input 
-                placeholder="Search by name or email..." 
-                className="pl-9 w-[250px] md:w-[300px]" 
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-            
+            <Input 
+              placeholder="Search users..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-[250px]"
+            />
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
               <DialogTrigger asChild>
-                <Button className="gap-2">
-                  <Plus className="size-4" />
-                  Add User
-                </Button>
+                <Button className="gap-2"><Plus className="size-4" />Add User</Button>
               </DialogTrigger>
               <DialogContent>
                 <form onSubmit={handleAddUser}>
                   <DialogHeader>
-                    <DialogTitle>Add New Platform User</DialogTitle>
-                    <DialogDescription>
-                      Create a new authentication account and profile for a landlord or administrator.
-                    </DialogDescription>
+                    <DialogTitle>Add User</DialogTitle>
                   </DialogHeader>
                   <div className="grid gap-4 py-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="name">Full Name</Label>
-                      <Input id="name" name="name" placeholder="Jane Doe" required />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="email">Email Address</Label>
-                      <Input id="email" name="email" type="email" placeholder="jane@example.com" required />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="password">Temporary Password</Label>
-                      <div className="relative">
-                        <Input 
-                          id="password" 
-                          name="password" 
-                          type={showTempPassword ? "text" : "password"} 
-                          required 
-                          className="pr-10"
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                          onClick={() => setShowTempPassword(!showTempPassword)}
-                        >
-                          {showTempPassword ? (
-                            <EyeOff className="h-4 w-4 text-muted-foreground" />
-                          ) : (
-                            <Eye className="h-4 w-4 text-muted-foreground" />
-                          )}
-                        </Button>
-                      </div>
-                      <p className="text-[10px] text-muted-foreground">Minimum 6 characters. Provide this to the user for their first login.</p>
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="role">Platform Role</Label>
-                      <Select name="role" defaultValue="landlord" required>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a role" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="landlord">Landlord</SelectItem>
-                          <SelectItem value="super-admin">Super Admin</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                    <Label>Name</Label><Input name="name" required />
+                    <Label>Email</Label><Input name="email" type="email" required />
+                    <Label>Password</Label><Input name="password" type="password" required />
+                    <Label>Role</Label>
+                    <Select name="role" defaultValue="landlord">
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="landlord">Landlord</SelectItem>
+                        <SelectItem value="super-admin">Super Admin</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <DialogFooter>
-                    <Button type="submit" disabled={isSubmitting}>
-                      {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                      Create User
-                    </Button>
-                  </DialogFooter>
+                  <DialogFooter><Button type="submit" disabled={isSubmitting}>Create</Button></DialogFooter>
                 </form>
               </DialogContent>
             </Dialog>
@@ -302,148 +187,68 @@ export default function UserManagementPage() {
         </div>
 
         <Card>
-          <CardHeader>
-            <CardTitle className="font-headline">All Users</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {uLoading || !canFetchUsers ? (
-              <div className="flex justify-center p-12"><Loader2 className="animate-spin" /></div>
-            ) : filteredUsers.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-lg">
-                <AlertCircle className="size-8 mx-auto opacity-20 mb-2" />
-                <p>{searchTerm ? "No users match your search." : "No users registered yet."}</p>
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>User</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Joined</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+          <CardContent className="pt-6">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>User</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredUsers.map((user) => (
+                  <TableRow key={user.id}>
+                    <TableCell>
+                      <div className="font-medium">{user.name}</div>
+                      <div className="text-xs text-muted-foreground">{user.email}</div>
+                    </TableCell>
+                    <TableCell><Badge>{user.role}</Badge></TableCell>
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreVertical className="size-4" /></Button></DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => { setSelectedUser(user); setIsEditDialogOpen(true); }}>
+                            <Edit className="mr-2 size-4" /> Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => handleDeleteUser(user.id)} className="text-destructive">
+                            <Trash2 className="mr-2 size-4" /> Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredUsers.map((user) => (
-                    <TableRow key={user.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <div className="size-8 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary">
-                            {user.name.charAt(0)}
-                          </div>
-                          <div>
-                            <div className="font-medium">{user.name}</div>
-                            <div className="text-xs text-muted-foreground flex items-center gap-1">
-                              <Mail className="size-3" /> {user.email}
-                            </div>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={user.role === 'super-admin' ? 'default' : 'secondary'}>
-                          <div className="flex items-center gap-1">
-                            {user.role === 'super-admin' ? <ShieldCheck className="size-3" /> : <UserCheck className="size-3" />}
-                            {user.role}
-                          </div>
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <MoreVertical className="size-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => {
-                              setSelectedUser(user);
-                              setIsEditDialogOpen(true);
-                            }}>
-                              <Edit className="mr-2 size-4" /> Edit Profile
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handlePasswordReset(user.email)}>
-                              <Key className="mr-2 size-4" /> Reset Password
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive font-semibold">
-                                  <Trash2 className="mr-2 size-4" /> Remove User
-                                </DropdownMenuItem>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    This will permanently delete the profile for {user.name}. 
-                                    They will no longer be able to access their landlord dashboard.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction 
-                                    onClick={() => handleDeleteUser(user.id)}
-                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                  >
-                                    Delete User
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
+                ))}
+              </TableBody>
+            </Table>
           </CardContent>
         </Card>
       </div>
 
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+      <Dialog 
+        open={isEditDialogOpen} 
+        onOpenChange={(open) => {
+          setIsEditDialogOpen(open);
+          if (!open) setTimeout(() => setSelectedUser(null), 100);
+        }}
+      >
         <DialogContent>
           {selectedUser && (
             <form onSubmit={handleUpdateUser}>
-              <DialogHeader>
-                <DialogTitle>Edit User Profile</DialogTitle>
-                <DialogDescription>
-                  Modify roles and basic information for this user.
-                </DialogDescription>
-              </DialogHeader>
+              <DialogHeader><DialogTitle>Edit User</DialogTitle></DialogHeader>
               <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="edit-name">Display Name</Label>
-                  <Input id="edit-name" name="name" defaultValue={selectedUser.name} required />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="edit-email">Email Address</Label>
-                  <Input id="edit-email" name="email" type="email" defaultValue={selectedUser.email} required />
-                  <p className="text-[10px] text-muted-foreground">Changing this updates the profile. The user should use this for future comms.</p>
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="edit-role">Platform Role</Label>
-                  <Select name="role" defaultValue={selectedUser.role} required>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="landlord">Landlord</SelectItem>
-                      <SelectItem value="super-admin">Super Admin</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                <Label>Name</Label><Input name="name" defaultValue={selectedUser.name} required />
+                <Label>Role</Label>
+                <Select name="role" defaultValue={selectedUser.role}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="landlord">Landlord</SelectItem>
+                    <SelectItem value="super-admin">Super Admin</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-              <DialogFooter>
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Save Changes
-                </Button>
-              </DialogFooter>
+              <DialogFooter><Button type="submit" disabled={isSubmitting}>Save</Button></DialogFooter>
             </form>
           )}
         </DialogContent>
