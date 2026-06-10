@@ -39,6 +39,7 @@ import {
   AlertDialogAction, 
   AlertDialogCancel, 
   AlertDialogContent, 
+  AlertDialogDescription,
   AlertDialogHeader, 
   AlertDialogTitle, 
   AlertDialogTrigger,
@@ -130,7 +131,7 @@ export default function TenantsPage() {
       const tenantRef = doc(db, "tenants", selectedTenant.id)
       await updateDoc(tenantRef, updateData)
       
-      // Critical: Close dialog first, then reset state
+      // Close the dialog FIRST to avoid UI lockup
       setIsEditDialogOpen(false)
       toast({ title: "Tenant Updated", description: "Record updated successfully." })
     } catch (error: any) {
@@ -398,7 +399,7 @@ export default function TenantsPage() {
           setIsEditDialogOpen(open);
           if (!open) {
             // Clean up focus and state after dialog is fully closed
-            setSelectedTenant(null);
+            setTimeout(() => setSelectedTenant(null), 100);
           }
         }}
       >
