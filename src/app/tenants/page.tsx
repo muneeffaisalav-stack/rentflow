@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState } from "react"
@@ -80,7 +79,7 @@ export default function TenantsPage() {
       upiId: formData.get("upi") as string,
       propertyId: formData.get("propertyId") as string,
       landlordId: user.uid,
-      status: 'active',
+      status: 'active' as const,
       createdAt: new Date().toISOString(),
     }
 
@@ -401,6 +400,6 @@ export default function TenantsPage() {
           </form>
         </DialogContent>
       </Dialog>
-    </div>
+    </DashboardLayout>
   )
 }
