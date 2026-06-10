@@ -2,6 +2,7 @@
 "use client"
 
 import { use } from "react"
+import { useRouter } from "next/navigation"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -18,19 +19,34 @@ import {
   Clock, 
   AlertCircle,
   MessageCircle,
-  Download
+  Download,
+  Trash2
 } from "lucide-react"
 import Link from "next/link"
 import { useFirestore, useDoc, useCollection, useMemoFirebase, useUser } from "@/firebase"
-import { doc, collection, query, where } from "firebase/firestore"
+import { doc, collection, query, where, deleteDoc } from "firebase/firestore"
 import { Tenant, Property, Invoice } from "@/lib/types"
 import { useToast } from "@/hooks/use-toast"
+import { 
+  AlertDialog, 
+  AlertDialogAction, 
+  AlertDialogCancel, 
+  AlertDialogContent, 
+  AlertDialogDescription, 
+  AlertDialogFooter, 
+  AlertDialogHeader, 
+  AlertDialogTitle, 
+  AlertDialogTrigger 
+} from "@/components/ui/alert-dialog"
+import { errorEmitter } from "@/firebase/error-emitter"
+import { FirestorePermissionError } from "@/firebase/errors"
 
 export default function TenantDetailsPage({ params }: { params: Promise<{ tenantId: string }> }) {
   const { tenantId } = use(params)
   const { user } = useUser()
   const db = useFirestore()
   const { toast } = useToast()
+  const router = useRouter()
 
   const tenantRef = useMemoFirebase(() => doc(db, "tenants", tenantId), [db, tenantId])
   const { data: tenant, loading: tLoading } = useDoc<Tenant>(tenantRef)
@@ -57,6 +73,26 @@ export default function TenantDetailsPage({ params }: { params: Promise<{ tenant
     const message = encodeURIComponent(`Hi ${tenant.name}, reaching out regarding the property at ${property?.propertyName || 'your rental'}.`);
     window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
   };
+
+  const handleDeleteTenant = async () => {
+    if (!db || !user || !tenantId) return
+
+    deleteDoc(doc(db, "tenants", tenantId))
+      .then(() => {
+        toast({
+          title: "Tenant Removed",
+          description: "Record has been permanently deleted from the system.",
+        })
+        router.push("/tenants")
+      })
+      .catch(async (error) => {
+        const permissionError = new FirestorePermissionError({
+          path: `tenants/${tenantId}`,
+          operation: "delete",
+        })
+        errorEmitter.emit("permission-error", permissionError)
+      })
+  }
 
   const handleDownloadInvoice = (invoice: Invoice) => {
     if (!tenant || !property) return;
@@ -121,19 +157,44 @@ Thank you for choosing RentFlow.
   return (
     <DashboardLayout>
       <div className="space-y-8">
-        <div className="flex items-center gap-4">
-          <Link href="/tenants">
-            <Button variant="outline" size="icon" className="rounded-full">
-              <ArrowLeft className="size-4" />
-            </Button>
-          </Link>
-          <div>
-            <h2 className="text-3xl font-headline font-bold tracking-tight">{tenant.name}</h2>
-            <div className="flex items-center gap-2 mt-1">
-              <Badge variant={tenant.status === 'active' ? 'default' : 'secondary'}>{tenant.status}</Badge>
-              <span className="text-muted-foreground text-sm">Tenant since {tenantSince}</span>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <Link href="/tenants">
+              <Button variant="outline" size="icon" className="rounded-full">
+                <ArrowLeft className="size-4" />
+              </Button>
+            </Link>
+            <div>
+              <h2 className="text-3xl font-headline font-bold tracking-tight">{tenant.name}</h2>
+              <div className="flex items-center gap-2 mt-1">
+                <Badge variant={tenant.status === 'active' ? 'default' : 'secondary'}>{tenant.status}</Badge>
+                <span className="text-muted-foreground text-sm">Tenant since {tenantSince}</span>
+              </div>
             </div>
           </div>
+          
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" className="gap-2 self-start md:self-auto">
+                <Trash2 className="size-4" />
+                Remove Tenant
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This action will permanently remove <strong>{tenant.name}</strong> from your records. This process cannot be undone and you will lose access to their profile and agreement history.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDeleteTenant} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                  Confirm Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
 
         <div className="grid gap-6 md:grid-cols-3">

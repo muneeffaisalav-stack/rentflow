@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState } from "react"
@@ -23,7 +24,8 @@ import {
   Loader2,
   MessageCircle,
   Eye,
-  Edit
+  Edit,
+  Trash2
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -31,11 +33,23 @@ import {
   DropdownMenu, 
   DropdownMenuContent, 
   DropdownMenuItem, 
-  DropdownMenuTrigger 
+  DropdownMenuTrigger,
+  DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu"
+import { 
+  AlertDialog, 
+  AlertDialogAction, 
+  AlertDialogCancel, 
+  AlertDialogContent, 
+  AlertDialogDescription, 
+  AlertDialogFooter, 
+  AlertDialogHeader, 
+  AlertDialogTitle, 
+  AlertDialogTrigger 
+} from "@/components/ui/alert-dialog"
 import { useToast } from "@/hooks/use-toast"
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase"
-import { collection, query, where, addDoc, updateDoc, doc } from "firebase/firestore"
+import { collection, query, where, addDoc, updateDoc, doc, deleteDoc } from "firebase/firestore"
 import { Tenant, Property } from "@/lib/types"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
@@ -118,14 +132,9 @@ export default function TenantsPage() {
     try {
       const tenantRef = doc(db, "tenants", selectedTenant.id)
       await updateDoc(tenantRef, updateData)
-      
-      // Close first, then clear selection to avoid Radix cleanup issues
       setIsEditDialogOpen(false)
-      
-      toast({ 
-        title: "Tenant Updated", 
-        description: "Record updated successfully." 
-      })
+      setTimeout(() => setSelectedTenant(null), 150);
+      toast({ title: "Tenant Updated", description: "Record updated successfully." })
     } catch (error: any) {
       const permissionError = new FirestorePermissionError({
         path: `tenants/${selectedTenant.id}`,
@@ -136,6 +145,25 @@ export default function TenantsPage() {
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  const handleDeleteTenant = async (tenantId: string) => {
+    if (!db || !user) return
+
+    deleteDoc(doc(db, "tenants", tenantId))
+      .then(() => {
+        toast({
+          title: "Tenant Removed",
+          description: "The tenant record has been permanently deleted.",
+        })
+      })
+      .catch(async (error) => {
+        const permissionError = new FirestorePermissionError({
+          path: `tenants/${tenantId}`,
+          operation: "delete",
+        })
+        errorEmitter.emit("permission-error", permissionError)
+      })
   }
 
   const handleWhatsAppReminder = (tenant: Tenant) => {
@@ -238,9 +266,6 @@ export default function TenantsPage() {
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
                 </div>
-                <Button variant="outline" size="icon">
-                  <Filter className="h-4 w-4" />
-                </Button>
               </div>
             </div>
           </CardHeader>
@@ -330,6 +355,31 @@ export default function TenantsPage() {
                                 }}>
                                   <Edit className="size-4 mr-2" /> Edit Record
                                 </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive font-semibold">
+                                      <Trash2 className="size-4 mr-2" /> Remove Tenant
+                                    </DropdownMenuItem>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Remove Tenant Record?</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        This will permanently delete the profile for <strong>{tenant.name}</strong>. This action cannot be undone.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                      <AlertDialogAction 
+                                        onClick={() => handleDeleteTenant(tenant.id)}
+                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                      >
+                                        Delete
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>
@@ -348,7 +398,6 @@ export default function TenantsPage() {
         open={isEditDialogOpen} 
         onOpenChange={(open) => {
           setIsEditDialogOpen(open);
-          // Only clear after the dialog closes to prevent pointer-lock issues
           if (!open) {
             setTimeout(() => setSelectedTenant(null), 150);
           }
